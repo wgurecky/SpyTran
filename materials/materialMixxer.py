@@ -245,5 +245,10 @@ if __name__ == "__main__":
     print(modMat.nDdict)
     # Homogenize
     smear = 0.6 * modMat + 0.4 * leuMat
+    print("homogenized props")
     print(smear.density)
     print(smear.nDdict)
+    print("nufission")
+    print(smear.macroProp['Nnufission'])
+    print("chi")
+    print(smear.macroProp['chi'])
