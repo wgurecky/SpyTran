@@ -7,11 +7,12 @@ def readXS(inFileName):
     Populate a dictionary of material properties given a
     file formatted in a basic xs. format.
     '''
-    propsDict = {'total': None,
-                 'chi': None,
-                 'nufission': None,
-                 'skernel': None
-                 }
+    #propsDict = {'total': None,
+    #             'chi': None,
+    #             'nufission': None,
+    #             'skernel': None
+    #             }
+    propsDict = {}
     reFlags = {'total': "TOTAL",
                'chi': "CHI",
                'nufission': "NUFISSION",
@@ -25,7 +26,19 @@ def readXS(inFileName):
         if check:
             propsDict[check[0]] = table2NP(i, fileLineList)
     # Restructure skernel table into matrix format
-    propsDict['skernel'] = matrixSkernel(propsDict['skernel'], len(propsDict['total']))
+    # Do all materials have skernel? yes, but need a check here.
+    if 'skernel' in propsDict.keys():
+        propsDict['skernel'] = matrixSkernel(propsDict['skernel'], len(propsDict['total']))
+        propsDict['skernel'] = np.transpose(propsDict['skernel'], axes=[0, 2, 1])
+    # Trim and flip arrays (NJOY group ordering fuckerry)
+    # group 1 in NJOY is slowest group.
+    # Reorder so group 1 is fastest group (traditional way)
+    if 'chi' in propsDict.keys():
+        propsDict['chi'] = np.flipud(propsDict['chi'][:, 1])
+    if 'total' in propsDict.keys():
+        propsDict['total'] = np.flipud(propsDict['total'][:, 1])
+    if 'nufission' in propsDict.keys():
+        propsDict['nufission'] = np.flipud(propsDict['nufission'][:, 1])
     return propsDict
 
 
