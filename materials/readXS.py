@@ -2,7 +2,7 @@ import numpy as np
 import re
 
 
-def readXS(inFileName):
+def readXS(inFileName, tableFormat='dumb'):
     '''
     Populate a dictionary of material properties given a
     file formatted in a basic xs. format.
@@ -25,6 +25,21 @@ def readXS(inFileName):
         check = checkLine(line, reFlags)
         if check:
             propsDict[check[0]] = table2NP(i, fileLineList)
+    # Fix issues with formatting and return
+    # This could support different table structures, all you need is
+    # a formatting function to take raw ascii table to standard array/matrix
+    # numpy format
+    if tableFormat is 'dumb':
+        propsDict = fixNJOYdata(propsDict)
+    else:
+        pass
+    return propsDict
+
+
+def fixNJOYdata(propsDict):
+    '''
+    Takes ME338f class formatted data and generates numpy arrays.
+    '''
     # Restructure skernel table into matrix format
     # Do all materials have skernel? yes, but need a check here.
     if 'skernel' in propsDict.keys():
@@ -34,11 +49,19 @@ def readXS(inFileName):
     # group 1 in NJOY is slowest group.
     # Reorder so group 1 is fastest group (traditional way)
     if 'chi' in propsDict.keys():
-        propsDict['chi'] = np.flipud(propsDict['chi'][:, 1])
+        if not propsDict['chi'].any():
+            # if no chi data around, remove chi key from dict.
+            propsDict.pop('chi', None)
+        else:
+            propsDict['chi'] = np.flipud(propsDict['chi'][:, 1])
     if 'total' in propsDict.keys():
         propsDict['total'] = np.flipud(propsDict['total'][:, 1])
     if 'nufission' in propsDict.keys():
-        propsDict['nufission'] = np.flipud(propsDict['nufission'][:, 1])
+        if not propsDict['nufission'].any():
+            # if no nufission data around, remove nufission key from dict.
+            propsDict.pop('nufission', None)
+        else:
+            propsDict['nufission'] = np.flipud(propsDict['nufission'][:, 1])
     return propsDict
 
 
