@@ -44,7 +44,7 @@ def fixNJOYdata(propsDict):
     # Do all materials have skernel? yes, but need a check here.
     if 'skernel' in propsDict.keys():
         propsDict['skernel'] = matrixSkernel(propsDict['skernel'], len(propsDict['total']))
-        propsDict['skernel'] = np.transpose(propsDict['skernel'], axes=[0, 2, 1])
+        propsDict['skernel'] = np.transpose(propsDict['skernel'], axes=[0, 1, 2])
     # Trim and flip arrays (NJOY group ordering fuckerry)
     # group 1 in NJOY is slowest group.
     # Reorder so group 1 is fastest group (traditional way)
@@ -74,7 +74,8 @@ def matrixSkernel(skernelTable, Ngroups):
     NlegMoments = np.shape(skernelTable)[1] - 2
     skernelMatrix = np.zeros((NlegMoments, Ngroups, Ngroups))
     for row in skernelTable:
-        skernelMatrix[:, int(row[0]) - 1, int(row[1]) - 1] = row[2:]
+        skernelMatrix[:, int(row[1]) - 1, int(row[0]) - 1] = row[2:]
+    skernelMatrix = skernelMatrix[:, ::-1, ::-1]
     return skernelMatrix
 
 
