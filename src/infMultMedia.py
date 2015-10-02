@@ -127,7 +127,7 @@ if __name__ == "__main__":
     # Create pin cell material
     pinCellMaterial = pcm.createPinCellMat()
     # Solve k-eigenvalue problem
-    kVec, fluxVec = solveCrit(pinCellMaterial)
+    kVec, fluxVec = solveCrit(pinCellMaterial, k0=1.1)
     # Compute U235 and U238 reaction rates
     numberDensity235 = pinCellMaterial.nDdict['u235']
     numberDensity238 = pinCellMaterial.nDdict['u238']
