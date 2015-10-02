@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # Solve an infinite multiplying media problem.
-# Use 10 energy groups
 #
 # Obtain:
 #   - flux(E)
@@ -18,12 +17,14 @@
 # And k is updated by the following
 # k(i+1) = k(i) * (AF / F)
 
-import materials.materialMixxer as mx
 import numpy as np
+np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
 def fluxSolve(H, F, k, flux):
-    # iH = np.linalg.inv(H)
+    """
+    Update flux according to power iteration.
+    """
     fissionOp = (1 / k) * F
     # scale flux by fission op
     b = np.dot(fissionOp, flux)
@@ -33,17 +34,28 @@ def fluxSolve(H, F, k, flux):
 
 
 def cramersRule(H, F):
+    """
+    Compute eigenval using cramers rule.
+    """
     from scipy import linalg
     eigl, eigv = linalg.eig(H, F)
+    print("Cramers Rule k-effs:")
+    print(eigl)
     return eigl, eigv
 
 
 def kUpdate(nuFission, k, flux):
+    """
+    Update k according to power iteration.
+    """
     newK = k * np.sum(nuFission * flux[-1]) / np.sum(nuFission * flux[-2])
     return newK
 
 
 def checkConverge(k, flux):
+    """
+    Performes convergence check on flux and eigenvalue.
+    """
     deltK = np.abs(k[-1] - k[-2])
     l2Flux = np.linalg.norm((flux[-1] - flux[-2]) / flux[-1])
     if deltK < 1e-6 and l2Flux < 1e-6:
@@ -52,54 +64,80 @@ def checkConverge(k, flux):
         return deltK, l2Flux, False
 
 
-def solveCrit(infMediaMat, k0=1.1, flux0=np.ones(10)):
+def solveCrit(infMediaMat, k0=1.1, flux0=np.ones(10), **kwargs):
     """
-    Takes a mixed material class instance.
+    Takes a mixed material class instance and initial guesses for the flux and
+    eigenvalue.  Optionally find eigenvalues using kramers rule.
     Performs power iterations to obtain flux(E) and k for the inf. medium.
     """
-    np.set_printoptions(linewidth=200)
-    groups = len(infMediaMat.macroProp['Ntotal'])
+    # Optional Arguments
+    cramerCheck = kwargs.pop('cceck', False)
+    verbosePrint = kwargs.pop('verbose', True)
+    #
+    #
     # setup multigroup transport operator
-    A = np.eye(groups) * infMediaMat.macroProp['Ntotal'] - \
+    Ngroups = len(infMediaMat.macroProp['Ntotal'])
+    A = np.eye(Ngroups) * infMediaMat.macroProp['Ntotal'] - \
         infMediaMat.macroProp['Nskernel'][0]
-    print("Multigroup transport operator:")
-    print(A)
     # setup fission matrix
     F = np.dot(np.array([infMediaMat.macroProp['chi']]).T,
                np.array([infMediaMat.macroProp['Nnufission']]))
-    print("Fission source matrix:")
-    print(F)
+    if verbosePrint:
+        print("Multigroup transport operator:")
+        print(A)
+        print("Fission source matrix:")
+        print(F)
     # initial guess for k and flux (keep track of past k estimates)
     k, flux = [k0], [flux0]
     kResid, fluxResid = [], []
     # Perform cramers rule for a check
-    cramersRule(A, F)
+    if cramerCheck:
+        cramersRule(A, F)
     # Init stop criteria
     converged, i = False, 1
+    print("======================================================")
     print("_________K-Eigenvalue Inf Medium Solver Start_________")
-    print("iteration |   k-eff   |   k-diff  |   l2Norm-flux     ")
+    print("iteration|    k-eff    |    delta-k   |   l2Norm-flux     ")
     print("======================================================")
     print(str("%i" % 0) + "         " + str("%.5f" % k[-1]))
     while not converged:
         # Power iterations
-        print(flux[-1])
         flux.append(fluxSolve(A, F, k[-1], flux[-1]))
         k.append(kUpdate(infMediaMat.macroProp['Nnufission'], k[-1], flux))
         deltK, l2Flux, converged = checkConverge(k, flux)
         kResid.append(deltK)
         fluxResid.append(l2Flux)
-        print(str("%i" % i) + "         " + str("%.5f" % k[-1]))
+        print(str("%i" % i) + "         " + str("%.6f" % k[-1]) + "       " +
+              str("%.6e" % kResid[-1]) + "     " + str("%.6e" % fluxResid[-1]))
         if i > 10:
             break
         i += 1
-        converged = False
+    print("======================================================")
+    print("Final Flux Vector Estimate:")
+    print(flux[-1])
+    print("======================================================")
     return k, flux
 
 
 if __name__ == "__main__":
     # Load xs database
-    mx.genMaterialDict('./materials/hw2')
+    import materials.materialMixxer as mx
     import pinCellMatCalc as pcm
-    fluxVec, kVec = solveCrit(pcm.createPinCellMat())
+    mx.genMaterialDict('./materials/hw2')
+    # Create pin cell material
+    pinCellMaterial = pcm.createPinCellMat()
+    # Solve k-eigenvalue problem
+    kVec, fluxVec = solveCrit(pinCellMaterial)
+    # Compute U235 and U238 reaction rates
+    numberDensity235 = pinCellMaterial.nDdict['u235']
+    numberDensity238 = pinCellMaterial.nDdict['u238']
+    u235 = mx.mixedMat({'u235': numberDensity235})
+    u238 = mx.mixedMat({'u238': numberDensity238})
+    Ru238 = np.sum(u238.macroProp['Nnufission'] * fluxVec[-1])
+    Ru235 = np.sum(u235.macroProp['Nnufission'] * fluxVec[-1])
+    fRR = np.sum([Ru238, Ru235])
+    print("Relative U238 fission reaction rate: " + str(Ru238 / fRR))
+    print("Relative U235 fission reaction rate: " + str(Ru235 / fRR))
     # plot results
-    pass
+    import plotters.fluxEplot as flxPlt
+    flxPlt.plotFluxE(fluxVec[-1][::-1])
