@@ -122,7 +122,7 @@ def solveCrit(infMediaMat, k0=1.1, flux0=np.ones(10), **kwargs):
 if __name__ == "__main__":
     # Load xs database
     import materials.materialMixxer as mx
-    import pinCellMatCalc as pcm
+    import utils.pinCellMatCalc as pcm
     mx.genMaterialDict('./materials/hw2')
     # Create pin cell material
     pinCellMaterial = pcm.createPinCellMat()
