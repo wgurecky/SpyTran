@@ -4,17 +4,19 @@ SPyNe
 Simplified Sn transport for Nuclear engineering applications written mostly in python.
 
 
-Materials
+Directory
 +++++++++
 
-Contains material mixing routines and xs readers.
-
-
-Src
-+++
-
-Here resides the SN transport source code.
-
+- /src
+  drivers and solvers
+  - /src/materials
+    material mixing routines and xs readers.
+  - /src/utils
+    utility functions for homogenizing materials in a variety geometries.
+    other extra code
+  - /src/plotters
+    flux and skernel plotting functions.
+  
 
 Contributors
 ============
