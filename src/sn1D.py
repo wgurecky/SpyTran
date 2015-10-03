@@ -107,29 +107,25 @@ class Mesh1Dsn(object):
         """
         converged, i = False, 0
         while not converged:
-            # TODO: condense sweep dir functions into one fn
-            self._sweepPosDir()
-            self._sweepNegDir()
+            self._sweepDir(1)
+            self._sweepDir(2)
             i += 1
-            if i > 2:
+            if i > 3:
                 converged = True
 
-    def _sweepPosDir(self):
+    def _sweepDir(self, o):
         """
-        o is either 0 or 2 in 1D
-        0 is left cell edge,  2 is right edge
+        o is either 1 or 2 in 1D
+        1 is left cell edge,  2 is right edge
         """
         # note len(self.ordFlux) == len(self.mu)
         for cell in self.cells:
-            cell.ordFlux[:, 1, :] = (cell.ordFlux[:, 0, :] + self.deltaX * self.qin / (2. * np.abs(self.mu))) / \
+            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, o, :] + self.deltaX * self.qin / (2. * np.abs(self.mu))) / \
                 (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
-            cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 1, :] - cell.ordFlux[:, 0, :]
-
-    def _sweepNegDir(self):
-        for cell in self.cells:
-            cell.ordFlux[:, 1, :] = (cell.ordFlux[:, 2, :] + self.deltaX * self.qin / (2. * np.abs(self.mu))) / \
-                (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
-            cell.ordFlux[:, 0, :] = 2. * cell.ordFlux[:, 1, :] - cell.ordFlux[:, 2, :]
+            if o == 1:
+                cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, o, :]
+            if o == 2:
+                cell.ordFlux[:, 1, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, o, :]
 
 
 class Cell1DSn(object):
@@ -147,16 +143,54 @@ class Cell1DSn(object):
     in S2, bin by 90deg chunks
     """
     sN2w = np.array([1.0, 1.0])
+    sN2mu = np.array([0.5773502691, -0.5773502691])
     sN4w = np.array([0.65214, 0.34785, 0.34785, 0.65214])
+    sN4mu = np.array([0.33998, 0.86113, -0.86113, -0.33998])
 
     def __init__(self, nGroups, legOrder, sNords, **kwargs):
         # store cell centered, and cell edge fluxes.  Store as
         # len(groups)x3xlen(sNords) matrix.
+        self.sNords = sNords
+        self.legOrder = legOrder
+        self.nG = nGroups
+        # ord flux vec: 0 is cell centered, 1 is left, 2 is right face
         self.ordFlux = np.ones((nGroups, 3, len(self.sNords)))
-        pass
 
     def _sweepOrd(self):
+        # Transport equation in sNords directions
+        for oi in ordinateDirs:
+            pass
+
+    def _evalScalarFlux(self, g, pos=0):
+        return (1 / 2.) * np.sum(self.sNw * self.ordFlux[g, pos, :])
+
+    def _evalLegMom(self, g, pos=0):
+        legsum = 0
+        for i in range(np.shape(self.ordFlux)[-1]):
+            legsum += self._legval(self.mu[i], self.sNw[i], self.ordFlux[g, pos, i])
+        return (1 / 2.) * legsum
+
+    def _legval(self, mu, wN, oflux):
+        """
+        takes direction cosine,
+        ordinate weight
+        ordinate flux
+        """
+        return np.polynomial.legendre.legval(mu, wN * oflux)
+
+    def _sweepEnergy(self, oi):
         pass
 
-    def _sweepEnergy(self):
-        pass
+    def _solveEnergy(self, H, qin, oi):
+        """
+        Instead of performing down/up-scatter sweeps:
+        solve simple ngrp x ngrp Ax = b problem.
+
+        Multigroup space and direction independent transport operator:
+        H = Ntotal - Nskernel
+
+        source term:
+        qin = (1/k) * F * flux + FixedSource
+        F = chi.T * nuFission
+        """
+        self.ordFlux[:, 0, oi] = np.linalg.solve(H, qin)
