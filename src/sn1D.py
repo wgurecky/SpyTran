@@ -67,25 +67,72 @@ class SubDomain(object):
     def __init__(self, mat, bounds):
         pass
 
+    def updateFlux(self):
+        # perform inner sweeps on subdomain
+        pass
+
 
 class Mesh1Dsn(object):
     def __init__(self, bounds, deltaX, material, **kwargs):
+        self.sNorder = kwargs.pop("sNorder", 2)
+        self._setOrds()
+        self.deltaX = deltaX
         # initilize all cells in the mesh.
+        self.cells = []
+        for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
+            self.cellPos[i] = pos
+            self.cells.append(Cell1DSn())
+
+        self.totalXs = material.macroProp['Ntotal']
+        self.skernel = material.macroProp['Nskernel']
+        self.qin = []  # scattering source
         pass
+
+    def _setOrds(self):
+        if self.sNorder == 2:
+            self.mu = np.array([-1., 1.])
+        else:
+            pass
 
     def buildCells(self):
         # save nearest neighbor information in preperation to generalize to 2D,
         # unstructured meshes.
         pass
 
+    def sweepMesh(self, ordi):
+        """
+        March through the cells in the mesh, update the ordinate fluxes as we go
+        Specify ordinate direction to travel in.  Go in +mu dir, then back
+        in the -mu direction (if necissary) untill convergence
+        """
+        converged, i = False, 0
+        while not converged:
+            # TODO: condense sweep dir functions into one fn
+            self._sweepPosDir()
+            self._sweepNegDir()
+            i += 1
+            if i > 2:
+                converged = True
 
-class Cell(object):
+    def _sweepPosDir(self):
+        """
+        o is either 0 or 2 in 1D
+        0 is left cell edge,  2 is right edge
+        """
+        # note len(self.ordFlux) == len(self.mu)
+        for cell in self.cells:
+            cell.ordFlux[:, 1, :] = (cell.ordFlux[:, 0, :] + self.deltaX * self.qin / (2. * np.abs(self.mu))) / \
+                (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
+            cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 1, :] - cell.ordFlux[:, 0, :]
 
-    def __init__(self, legOrder, sNords, **kwargs):
-        pass
+    def _sweepNegDir(self):
+        for cell in self.cells:
+            cell.ordFlux[:, 1, :] = (cell.ordFlux[:, 2, :] + self.deltaX * self.qin / (2. * np.abs(self.mu))) / \
+                (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
+            cell.ordFlux[:, 0, :] = 2. * cell.ordFlux[:, 1, :] - cell.ordFlux[:, 2, :]
 
 
-class Cell1DSn(Cell):
+class Cell1DSn(object):
     """
     sN ordinates (sNords) dont have to be evenly distributed in mu-space.  can
     be specified to be biased to one particular direction, for instance, to
@@ -103,13 +150,13 @@ class Cell1DSn(Cell):
     sN4w = np.array([0.65214, 0.34785, 0.34785, 0.65214])
 
     def __init__(self, nGroups, legOrder, sNords, **kwargs):
-        super(Cell, self).__init__(legOrder, sNords, **kwargs)
         # store cell centered, and cell edge fluxes.  Store as
         # len(groups)x3xlen(sNords) matrix.
         self.ordFlux = np.ones((nGroups, 3, len(self.sNords)))
         pass
 
+    def _sweepOrd(self):
+        pass
 
-class Cell1DPn(Cell):
-    def __init__(self):
+    def _sweepEnergy(self):
         pass
