@@ -28,6 +28,18 @@ No special code required.  Perform region sweeps untill convergence.
 Class: Region
 =============
 
+Can hold mutiple subregions.  Each subregion has its own mesh and material parameters.
+
+def sweepRegion():
+
+    - performs an "inner" flux iteration.  sweep through all angle and all space.
+
+    - future work: If multiple regions in problem allow parrallel sweeps via mpi
+
+
+Class: Subregion
+================
+
 Holds a mesh.  
 
 Holds a material.  
@@ -42,12 +54,6 @@ def selfSheildRegion():
 
         - uses leakage information out of the region to compute new and improved
           self sheilded cross sections.
-
-def sweepRegion():
-
-    - performs an "inner" flux iteration.  sweep through all angle and all space.
-
-    - future work: If multiple regions in problem allow parrallel sweeps via mpi
 
 
 Class: Mesh
