@@ -15,6 +15,12 @@
 import numpy as np
 import materials.materialMixxer as mx
 
+# STANDARD ORDINATES AND FLUX WEIGHTS FOR STD QUADRATURE SET
+sN2w = np.array([1.0, 1.0])
+sN2mu = np.array([0.5773502691, -0.5773502691])
+sN4w = np.array([0.34785, 0.65214, 0.65214, 0.34785])
+sN4mu = np.array([0.86113, 0.33998, -0.33998, -0.86113])
+
 
 class Domain(object):
     """
@@ -99,7 +105,7 @@ class Mesh1Dsn(object):
         # unstructured meshes.
         pass
 
-    def sweepMesh(self, ordi):
+    def sweepMesh(self, bcLeft, bcRight):
         """
         March through the cells in the mesh, update the ordinate fluxes as we go
         Specify ordinate direction to travel in.  Go in +mu dir, then back
@@ -109,25 +115,29 @@ class Mesh1Dsn(object):
         # Sweep space
         converged, i = False, 0
         while not converged:
-            self._sweepDir(1)
-            self._sweepDir(2)
+            self._sweepDir(1, bcLeft)
+            self._sweepDir(2, bcRight)
             i += 1
             if i > 3:
                 converged = True
 
-    def _sweepDir(self, o, qin):
+    def _sweepDir(self, o, bc):
         """
         o is either 1 or 2 in 1D
         1 is left cell edge,  2 is right edge
         """
         # note len(self.ordFlux) == len(self.mu)
+        lastCellFaceVal = bc
         for cell in self.cells:
-            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, o, :] + self.deltaX * qin / (2. * np.abs(self.mu))) / \
+            cell.ordFlux[:, o, :] = lastCellFaceVal
+            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, o, :] + self.deltaX * cell.qin / (2. * np.abs(self.mu))) / \
                 (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
             if o == 1:
                 cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, o, :]
+                lastCellFaceVal = cell.ordFlux[:, 2, :]
             if o == 2:
                 cell.ordFlux[:, 1, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, o, :]
+                lastCellFaceVal = cell.ordFlux[:, 1, :]
 
 
 class Cell1DSn(object):
@@ -144,21 +154,19 @@ class Cell1DSn(object):
     mu=cos(theta)
     in S2, bin by 90deg chunks
     """
-    sN2w = np.array([1.0, 1.0])
-    sN2mu = np.array([0.5773502691, -0.5773502691])
-    sN4w = np.array([0.65214, 0.34785, 0.34785, 0.65214])
-    sN4mu = np.array([0.33998, 0.86113, -0.86113, -0.33998])
 
-    def __init__(self, nGroups, legOrder, sNords, **kwargs):
+    def __init__(self, source, nGroups=10, legOrder=8, sNords=2, **kwargs):
         # store cell centered, and cell edge fluxes.  Store as
         # len(groups)x3xlen(sNords) matrix.
+        self.src = source  # fission or previous scattering source
         self.sNords = sNords
         self.legOrder = legOrder
         self.nG = nGroups
         # ord flux vec: 0 is cell centered, 1 is left, 2 is right face
         self.ordFlux = np.ones((nGroups, 3, len(self.sNords)))
+        self.qin = np.ones((nGroups, 3))
 
-    def _sweepOrd(self, ordinateDirs):
+    def _sweepOrd(self, ordinateDirs, initialSource, depth=0):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.
@@ -178,15 +186,44 @@ class Cell1DSn(object):
 
         As m-> inf.  fewer and fewer neutrons will be around to contribute to the
         mth scattering source.  qflux^(m) should tend to 0 at large m.
+
+        :Parameters:
+            - :param arg1: descrition
+            - :type arg1: type
+            - :return: return desctipt
+            - :rtype: return type
         """
-        # Transport equation in sNords directions
-        for oi in ordinateDirs:
-            pass
+        # 0th scattering soucre is given (fission or non-mult src term):
+        sIn = initialSource
+        if depth > 1:
+            # Transport equation in sNords directions
+            for oi in ordinateDirs:
+                scatteringSourceVec = self.evalScatter()
+                sIn += np.sum(scatteringSourceVec)
+        return sIn
+
+    def evalScatter(self):
+        """
+        computes scattering source:
+            sum_n(sigma_s(x, Omega.Omega')*flux_n(r, omega)
+        returns vector of scattered fluxes (flux after scattering op
+        has acted upon it).
+        """
+        self.legOrder
+        pass
 
     def _evalScalarFlux(self, g, pos=0):
+        """
+        group scalar flux evaluator
+        scalar_flux_g
+        """
         return (1 / 2.) * np.sum(self.sNw * self.ordFlux[g, pos, :])
 
-    def _evalLegMom(self, g, pos=0):
+    def _evalLegFlux(self, g, pos=0):
+        """
+        group legendre group flux
+        scalar_flux_lg
+        """
         legsum = 0
         for i in range(np.shape(self.ordFlux)[-1]):
             legsum += self._legval(self.mu[i], self.sNw[i] * self.ordFlux[g, pos, i])
@@ -194,9 +231,15 @@ class Cell1DSn(object):
 
     def _legval(self, mu, wN, oflux):
         """
-        takes direction cosine,
-        ordinate weight
-        ordinate flux
+        :Parameters:
+            - :param mu: len N direction cosine vector
+            - :type mu: nparray
+            - :param oflux: ordinate flux vector
+            - :type mu: nparray
+            - :param wN: ordinate quadrature weight
+            - :type mu: nparray
+            - :return: len N vec. legendre poly evaluated at input mu vec, scaled by input weights
+            - :rtype: return nparray
         """
         return np.polynomial.legendre.legval(mu, wN * oflux)
 
@@ -210,13 +253,18 @@ class Cell1DSn(object):
 
         Multigroup space and direction independent transport operator:
         H = Ntotal - Leg_skernel_in_direction_oi
-        Leg_skernel_in_dir_oi = int(dOmga', sigma_gg'(r, Omega.Omega'))
-        =
 
         source term:
-        qin = (1/k) * F * flux + FixedSource
-        F = chi.T * nuFission
+            For fission:
+                qin = (1/k) * F * flux + FixedSource
+                F = chi.T * nuFission
 
         Solves for all group fluxes in one ordinate direction.
+
+        :Parameters:
+            - :param arg1: descrition
+            - :type arg1: type
+            - :return: return desctipt
+            - :rtype: return type
         """
         self.ordFlux[:, 0, oi] = np.linalg.solve(H, qin)
