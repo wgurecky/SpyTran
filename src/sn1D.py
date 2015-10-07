@@ -80,6 +80,11 @@ class Mesh1Dsn(object):
         #
         self.totalXs = material.macroProp['Ntotal']
         self.skernel = material.macroProp['Nskernel']
+        if 'chi' in material.macroProp.keys():
+            self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
+                                       np.array([material.macroProp['Nnufission']]))
+        else:
+            self.chiNuFission = None
 
     def buildCells(self):
         # save nearest neighbor information in preperation to generalize to 2D,
@@ -118,7 +123,8 @@ class Mesh1Dsn(object):
             self._sweepDir(1, bcLeft)
             self._sweepDir(2, bcRight)
             i += 1
-            if i > 3:
+            if i > 5:
+                # max number of space-angle sweeps to perform
                 converged = True
         self.depth += 1  # increment scattering source iter
         self._addOrdFlux()
@@ -129,6 +135,14 @@ class Mesh1Dsn(object):
         '''
         for cell in self.cells:
             cell.totOrdFlux += cell.ordFlux
+
+    def resetFlux(self):
+        """
+        In k-eigenvalue problems.  after each outer iteration we have to
+        reset the ordinate fluxes
+        """
+        for cell in self.cells:
+            cell.resetTotOrdFlux()
 
     def _sweepDir(self, f, bc):
         """
@@ -149,7 +163,7 @@ class Mesh1Dsn(object):
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal
             # Sweep angle and energy within the cell to update qin (inscatter source)
-            cell.sweepOrd(self.depth)
+            cell.sweepOrd(self.skernel, self.chiNuFisison, self.keff, self.depth)
             # Step through space
             cell.ordFlux[:, 0, :] = (cell.ordFlux[:, f, :] + self.deltaX * cell.qin / (2. * np.abs(self.mu))) / \
                 (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
@@ -198,6 +212,8 @@ class Cell1DSn(object):
         self.ordFlux = np.ones((nGroups, 3, self.sNords))
         self.totOrdFlux = np.zeros((nGroups, 3, self.sNords))
         self.qin = np.ones((nGroups, 3, self.sNords))  # scatter/fission source computed by scattering source iteration
+        # fixed volumetric source
+        self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
         if self.S == 'fission':
             self.multiplying = True
         else:
@@ -209,10 +225,11 @@ class Cell1DSn(object):
         #   - reflecting flux
         #   - white
         self.boundaryCond = kwargs.pop('bc', None)  # none denotes interior cell
-        # fixed volumetric source
-        self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
 
-    def sweepOrd(self, depth=0):
+    def resetTotOrdFlux(self):
+        self.totOrdFlux = np.zeros((self.nGroups, 3, self.sNords))
+
+    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.
@@ -240,68 +257,73 @@ class Cell1DSn(object):
             - :rtype: return type
         """
         # 0th scattering soucre is given (fission or non-mult src term):
-        sIn = np.zeros(np.shape(self.ordFlux))
         if depth >= 1:
-            for oi in range(self.sNords):
-                scatteringSourceVec = self._evalScatterSource(oi)
-                sIn += np.sum(scatteringSourceVec)
+            for g in range(self.nG):
+                # obtain group scattering sources
+                self.qin[g, 0, :] = self._evalScatterSource(g, skernel)
         elif self.multiplying and depth == 0:
-            sIn = self._computeFissionSource()
+            self.qin = self._computeFissionSource(chiNuFission, keff) + self.S
         elif not self.multiplying and depth == 0:
-            sIn = self.S
-        self.qin = sIn
-        return sIn
+            self.qin = self.S
+        return self.qin
 
-    def _computeFissionSource(self, nuFission, keff):
+    def _computeFissionSource(self, chiNuFission, keff):
         if self.multiplying:
             # multiplying medium source
-            return (1 / keff) * np.sum(nuFission * self.ordFlux, axis=0)
-            pass
+            # note fission source is isotripic so each ordinate fission source
+            # flux is equivillent
+            return (1 / keff) * chiNuFission * self._evalScalarFlux()
         else:
             # need fixed source from user input
             pass
 
-    def _evalScatterSource(self, oi):
+    def _evalScatterSource(self, g, skernel):
         """
-        computes scattering source:
+        computes within group scattering sources:
             sigma_s(x, Omega.Omega')*flux_n(r, omega)
             where n is the group
-        returns vector of scattered fluxes (flux after scattering op
-        has acted upon it).
+        returns vector of scattered ordinate fluxes
         """
-        self.legOrder
-        pass
+        for g in range(self.nG):
+            # compute nth group scattering source term
+            self._evalLegSource(g, skernel)
+            pass
 
-    def _evalScalarFlux(self, g, pos=0):
+    def _evalLegSource(self, g, skernel):
+        """
+        compute sum_l((2l+1) * P_l(mu) * sigma_l * flux_l)
+        where l is the legendre order
+        returns a vecotr of length = len(mu)  (number of ordinate dirs)
+        Amazingly, legendre.legval function provides exactly this capability
+        """
+        weights = np.zeros(self.maxLegOrder)
+        for l in range(self.maxLegOrder + 1):
+            weights[l] = (2 * l + 1) * skernel[l] * self._evalLegFlux(g, l)
+        return np.polynomial.legendre.legval(self.sNmu, weights)
+
+    def _evalScalarFlux(self, pos=0):
         """
         group scalar flux evaluator
-        scalar_flux_g
+        scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
+        n is the ordinate iterate
         """
-        return (1 / 2.) * np.sum(self.sNw * self.ordFlux[g, pos, :])
+        scalarFlux = 0
+        for g in range(self.nG):
+            scalarFlux += np.sum(self.sNw * self.ordFlux[g, pos, :], axis=2)
+        return (1 / 2.) * scalarFlux
 
-    def _evalLegFlux(self, g, pos=0):
+    def _evalLegFlux(self, g, l, pos=0):
         """
         group legendre group flux
-        scalar_flux_lg
+        scalar_flux_lg = (1/2) * sum_n(w_n * P_l * flux_n)
+        where l is the legendre order
+        and n is the ordinate iterate
         """
-        legsum = 0
-        for i in range(np.shape(self.ordFlux)[-1]):
-            legsum += self._legval(self.mu[i], self.sNw[i] * self.ordFlux[g, pos, i])
+        legweights = np.zeros(self.maxLegOrder)
+        legweights[l] = 1.0
+        legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
+                        self.sNw * self.ordFlux[g, pos, :])
         return (1 / 2.) * legsum
-
-    def _legval(self, mu, wN, oflux):
-        """
-        :Parameters:
-            - :param mu: len N direction cosine vector
-            - :type mu: nparray
-            - :param oflux: ordinate flux vector
-            - :type oflux: nparray
-            - :param wN: ordinate quadrature weight
-            - :type wN: nparray
-            - :return: len N vec. legendre poly evaluated at input mu vec, scaled by input weights
-            - :rtype: return nparray
-        """
-        return np.polynomial.legendre.legval(mu, wN * oflux)
 
     def sweepEnergy(self, oi):
         pass
@@ -340,7 +362,7 @@ class Sn1Dbc(object):
     def applyRefBC(cell, face):
         # reflects cell outgoing flux at boundary to incomming flux
         # ex: flux_2 == flux_1
-        faceDot = cell.sNmu * cell.faceNormals[face - 1]
+        # faceDot = cell.sNmu * cell.faceNormals[face - 1]
         # look for equal magnitude but opposite sign when assigning direction
         # pairs
         directionPairs = []
