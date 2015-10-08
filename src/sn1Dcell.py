@@ -64,7 +64,7 @@ class Cell1DSn(object):
             return False
 
     def resetTotOrdFlux(self):
-        self.totOrdFlux = np.zeros((self.nGroups, 3, self.sNords))
+        self.totOrdFlux = np.zeros((self.nG, 3, self.sNords))
 
     def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0):
         """
@@ -163,6 +163,12 @@ class Cell1DSn(object):
         """
         scalarFlux = np.sum(self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * scalarFlux
+
+    def getTotScalarFlux(self, pos=0):
+        scalarFlux = []
+        for g in range(self.nG):
+            scalarFlux.append(self._evalScalarFlux(g, pos))
+        return np.array(scalarFlux)
 
     def _evalLegFlux(self, g, l, pos=0):
         """

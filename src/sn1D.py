@@ -160,6 +160,7 @@ class Mesh1Dsn(object):
         """
         for cell in self.cells:
             cell.resetTotOrdFlux()
+        self.depth = 0
 
     def getFlux(self):
         """
@@ -170,11 +171,18 @@ class Mesh1Dsn(object):
             totOrdFlux.append(cell.totOrdFlux)
         return np.array(totOrdFlux)
 
+    def fissionSrc(self):
+        return np.dot(self.chiNuFission, self.getScalarFlux().T)
+
     def getScalarFlux(self):
         """
         getter for all scalar fluxes (angle integrated)
         """
-        pass
+        totScalarFlux = []
+        for cell in self.cells:
+            totScalarFlux.append(cell.getTotScalarFlux())
+        totScalarFlux = np.array(totScalarFlux)
+        return totScalarFlux / np.sum(totScalarFlux)  # norm flux
 
     def setKeff(self, k):
         self.keff = k
