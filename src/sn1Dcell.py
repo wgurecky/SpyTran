@@ -18,10 +18,10 @@ class Cell1DSn(object):
     """
     # STANDARD ORDINATES AND FLUX WEIGHTS FOR STD QUADRATURE SET
     sNwDict = {2: np.array([1.0, 1.0]),
-               4: np.array([0.34785, 0.65214, 0.65214, 0.34785])
+               4: np.array([0.3478548451, 0.6521451549, 0.6521451549, 0.3478548451])
                }
     sNmuDict = {2: np.array([0.5773502691, -0.5773502691]),
-                4: np.array([0.86113, 0.33998, -0.33998, -0.86113])
+                4: np.array([0.8611363115, 0.3399810435, -0.3399810435, -0.8611363115])
                 }
 
     def __init__(self, xpos, deltaX, nGroups=10, legOrder=8, sNords=2, **kwargs):
@@ -42,16 +42,13 @@ class Cell1DSn(object):
         self.qin = np.ones((nGroups, 3, self.sNords))  # scatter/fission source computed by scattering source iteration
         # fixed volumetric source
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
-        if self.S == 'fission':
-            self.multiplying = True
-        else:
-            self.multiplying = False
-        # Cell can have 3 types of Bcs:
-        #   - Fixed face flux
-        #       - vaccume (incomming flux 0)
-        #       - fixed flux (incomming flux = const)
-        #   - reflecting flux
-        #   - white
+        if type(self.S) is str:
+            if self.S == 'fission':
+                self.multiplying = True
+            else:
+                self.S = np.zeros((nGroups, 3, self.sNords))
+                self.multiplying = False
+        # set bc, if any given
         self.boundaryCond = kwargs.pop('bc', None)  # none denotes interior cell
 
     def resetTotOrdFlux(self):
@@ -92,7 +89,7 @@ class Cell1DSn(object):
             for g in range(self.nG):
                 # compute gth group fission source
                 self.qin = self._computeFissionSource(g, chiNuFission, keff)
-            self.qin = self.qin + self.S
+            #self.qin = self.qin + self.S
         elif not self.multiplying and depth == 0:
             self.qin = self.S
         return self.qin
@@ -102,7 +99,8 @@ class Cell1DSn(object):
             # multiplying medium source
             # note fission source is isotripic so each ordinate fission source
             # flux is equivillent
-            return (1 / keff) * chiNuFission[g] * self._evalScalarFlux(g)
+            return (1 / keff / 2.0) * np.abs(self.sNmu) * \
+                np.sum(chiNuFission[g] * self._evalScalarFlux(g))
         else:
             # need fixed source from user input
             print("Fission source requested for Non multiplying medium.  FATALITY")
@@ -124,9 +122,21 @@ class Cell1DSn(object):
         returns a vecotr of length = len(mu)  (number of ordinate dirs)
         Amazingly, legendre.legval function provides exactly this capability
         """
-        weights = np.zeros(self.maxLegOrder)
+        def ggprimeInScatter(g, l):
+            """
+            Computes in-scattring into grp g reaction rate.
+            """
+            gtgScatter = 0
+            for gprime in range(self.nG):
+                # sum over all g' for g' =/= g
+                if g != gprime:
+                    gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
+            return gtgScatter
+        #
+        weights = np.zeros(self.maxLegOrder + 1)
         for l in range(self.maxLegOrder + 1):
-            weights[l] = (2 * l + 1) * skernel[l] * self._evalLegFlux(g, l)
+            #weights[l] = (2 * l + 1) * skernel[l] * self._evalLegFlux(g, l)
+            weights[l] = (2 * l + 1) * ggprimeInScatter(g, l)
         return np.polynomial.legendre.legval(self.sNmu, weights)
 
     def _evalScalarFlux(self, g, pos=0):
@@ -135,7 +145,7 @@ class Cell1DSn(object):
         scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
         n is the ordinate iterate
         """
-        scalarFlux = np.sum(self.sNw * self.ordFlux[g, pos, :], axis=2)
+        scalarFlux = np.sum(self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * scalarFlux
 
     def _evalLegFlux(self, g, l, pos=0):
@@ -145,10 +155,10 @@ class Cell1DSn(object):
         where l is the legendre order
         and n is the ordinate iterate
         """
-        legweights = np.zeros(self.maxLegOrder)
+        legweights = np.zeros(self.maxLegOrder + 1)
         legweights[l] = 1.0
         legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
-                        self.sNw * self.ordFlux[g, pos, :])
+                        self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * legsum
 
     def sweepEnergy(self, oi):
