@@ -44,17 +44,17 @@ class test1DsnCell(unittest.TestCase):
 
     def testKeigenSweep(self):
         print("\n========= INITIATING K-EIGEN TEST ==========")
-        mesh1D = sn.Mesh1Dsn([0, 10], 0.1, pinMaterial, sN=4)
+        mesh1D = sn.Mesh1Dsn([0, 100], 0.5, pinMaterial, sN=4)
         bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         #
         mesh1D.setKeff(1.)
         for pI in range(4):
             # Perform source iterations
-            nSourceIterations = 5
+            nSourceIterations = 4
             fissionSourceOld = np.sum(mesh1D.fissionSrc())  # todo mult by width
             for si in range(nSourceIterations):
-                mesh1D.sweepMesh(2)
+                mesh1D.sweepMesh(1)
             fissionSourceNew = np.sum(mesh1D.fissionSrc())
             knew = mesh1D.keff * (fissionSourceNew / fissionSourceOld)
             print("Outter iteration: " + str(pI) + "  k-eff :" + str(knew))
