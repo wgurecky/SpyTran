@@ -69,21 +69,37 @@ class SubDomain(object):
 
 class Mesh1Dsn(object):
     def __init__(self, bounds, deltaX, material, **kwargs):
-        # sNorder = kwargs.pop("sNorder", 2)
+        sN = kwargs.pop("sN", 2)
+        nGrps = kwargs.pop("gN", 10)
+        legO = kwargs.pop("lN", 8)
+        self.keff = 1.0
         self.deltaX = deltaX
         self.depth = 0  # scattering source iteration
-        # initilize all cells in the mesh.
-        self.cells = []
-        for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
-            self.cells.append(snc1d.Cell1DSn(pos, deltaX))
         #
         self.totalXs = material.macroProp['Ntotal']
         self.skernel = material.macroProp['Nskernel']
         if 'chi' in material.macroProp.keys():
             self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
                                        np.array([material.macroProp['Nnufission']]))
+            src = 'fission'
         else:
             self.chiNuFission = None
+            src = None
+        # initilize all cells in the mesh.
+        self.cells = []
+        for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
+            self.cells.append(snc1d.Cell1DSn(pos, deltaX, nGrps, legO, sN, source=src))
+
+    def setBCs(self, boundConds):
+        """
+        Where boundConds is a dict with cellID: boundaryCond pairs
+        and boundCond is given as a str in ('vac', 'ref', 'white') or:
+        in the special case of a fixed flux, a flux and direction cosine tuple.
+        or a flux float and 'iso' str pair indicating an isotropic boundary source of
+        strength give by the flux
+        """
+        for i, bc in boundConds.iteritems():
+            self.cells[i].setBC(bc)
 
     def buildCells(self):
         # save nearest neighbor information in preperation to generalize to 2D,
@@ -105,7 +121,7 @@ class Mesh1Dsn(object):
         """
         pass
 
-    def sweepMesh(self, bcLeft, bcRight):
+    def sweepMesh(self, stopI=1):
         """
         Outer space iterations:
             March through the cells in the mesh, update the ordinate fluxes as we go
@@ -119,10 +135,10 @@ class Mesh1Dsn(object):
         # Sweep space
         converged, i = False, 0
         while not converged:
-            self._sweepDir(1, bcLeft)
-            self._sweepDir(2, bcRight)
+            self._sweepDir(1)
+            self._sweepDir(2)
             i += 1
-            if i > 5:
+            if i >= stopI:
                 # max number of space-angle sweeps to perform
                 converged = True
         self.depth += 1  # increment scattering source iter
@@ -143,29 +159,46 @@ class Mesh1Dsn(object):
         for cell in self.cells:
             cell.resetTotOrdFlux()
 
-    def _sweepDir(self, f, bc):
+    def getFlux(self):
+        """
+        getter for all groups and ordiante fluxes
+        """
+        totOrdFlux = []
+        for cell in self.cells:
+            totOrdFlux.append(cell.totOrdFlux)
+        return np.array(totOrdFlux)
+
+    def getScalarFlux(self):
+        """
+        getter for all scalar fluxes (angle integrated)
+        """
+        pass
+
+    def setKeff(self, k):
+        self.keff = k
+
+    def _sweepDir(self, f):
         """
         f is either 1 or 2 in 1D
         f stands for face
         1 is left cell face,  2 is right face
         """
-        lastCellFaceVal = bc  # set boundary condition on flux at edge
+        lastCellFaceVal = None  # set boundary condition on flux at edge
         if f == 2:
             cellList = reversed(self.cells)
         else:
             cellList = self.cells
         for cell in cellList:
             if cell.boundaryCond is not None:
-                # Set cell boundary condition
-                pass
+                cell.applyBC(self.depth)
             else:
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal
             # Sweep angle within the cell to update qin (inscatter source)
-            cell.sweepOrd(self.skernel, self.chiNuFisison, self.keff, self.depth)
+            cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
             # Step through space
-            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, f, :] + self.deltaX * cell.qin / (2. * np.abs(self.mu))) / \
-                (1. + self.totalXs * self.deltaX / (2. * np.abs(self.mu)))
+            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, f, :] + self.deltaX * cell.qin / (2. * np.abs(cell.sNmu))) / \
+                (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu)))
             if f == 1:
                 cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, f, :]
                 lastCellFaceVal = cell.ordFlux[:, 2, :]

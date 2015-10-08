@@ -51,6 +51,17 @@ class Cell1DSn(object):
         # set bc, if any given
         self.boundaryCond = kwargs.pop('bc', None)  # none denotes interior cell
 
+    def setBC(self, bc):
+        self.boundaryCond = Sn1Dbc(bc)
+
+    def applyBC(self, depth):
+        if self.boundaryCond is not None:
+            self.boundaryCond.applyBC(self, depth)
+            return True
+        else:
+            print("WARNING: You are trying to use a boundary condition in an interior cell.")
+            return False
+
     def resetTotOrdFlux(self):
         self.totOrdFlux = np.zeros((self.nGroups, 3, self.sNords))
 
@@ -88,7 +99,7 @@ class Cell1DSn(object):
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
                 # compute gth group fission source
-                self.qin = self._computeFissionSource(g, chiNuFission, keff)
+                self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
             #self.qin = self.qin + self.S
         elif not self.multiplying and depth == 0:
             self.qin = self.S
@@ -189,13 +200,22 @@ class Cell1DSn(object):
 
 
 class Sn1Dbc(object):
-    def __init__(self, cell, face, bcType, depth=0):
-        if bcType == 'vac':
+    def __init__(self, bc):
+        self.vacBC = bc.pop('vac', None)
+        self.refBC = bc.pop('ref', None)
+        self.whiteBC = bc.pop('white', None)
+
+    def applyBC(self, cell, depth):
+        if self.vacBC is not None:
+            try:
+                face = self.vacBC[0]
+            except:
+                face = self.vacBC
             self.applyVacBC(cell, face)
         else:
             pass
 
-    def applyRefBC(cell, face):
+    def applyRefBC(self, cell, face):
         # reflects cell outgoing flux at boundary to incomming flux
         # ex: flux_2 == flux_1
         # faceDot = cell.sNmu * cell.faceNormals[face - 1]
@@ -205,7 +225,7 @@ class Sn1Dbc(object):
         for inwardDir, outwardDir in directionPairs:
             cell.ordFlux[:, face, inwardDir] = cell.ordFlux[:, face, outwardDir]
 
-    def applyVacBC(cell, face):
+    def applyVacBC(self, cell, face):
         # sets incomming flux to zero on designated face
         faceDot = cell.sNmu * cell.faceNormals[face - 1]
         inwardDirs = np.where(faceDot < 0)
