@@ -207,7 +207,11 @@ class Mesh1Dsn(object):
             # Sweep angle within the cell to update qin (inscatter source)
             cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
             # Step through space & angle
-            for o in range(cell.sNords):
+            # Only sweep through ordinates that have a component in same direction as
+            # current sweep dir. Filter ords by dot product
+            dotDir = cell.sNmu * cell.faceNormals[f - 1]
+            ordsInSweepDir = np.where(dotDir > 0.)
+            for o in np.arange(cell.sNords)[ordsInSweepDir]:
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
