@@ -9,6 +9,7 @@
 import numpy as np
 import materials.materialMixxer as mx
 import sn1Dcell as snc1d
+np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
 class Domain(object):
@@ -121,7 +122,7 @@ class Mesh1Dsn(object):
         """
         pass
 
-    def sweepMesh(self, stopI=1):
+    def sweepMesh(self, stopI=2):
         """
         Outer space iterations:
             March through the cells in the mesh, update the ordinate fluxes as we go
@@ -135,6 +136,7 @@ class Mesh1Dsn(object):
         # Sweep space
         converged, i = False, 0
         while not converged:
+            print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -183,7 +185,7 @@ class Mesh1Dsn(object):
         f stands for face
         1 is left cell face,  2 is right face
         """
-        lastCellFaceVal = None  # set boundary condition on flux at edge
+        lastCellFaceVal = np.zeros((self.cells[0].nG, self.cells[0].sNords))
         if f == 2:
             cellList = reversed(self.cells)
         else:
@@ -193,15 +195,18 @@ class Mesh1Dsn(object):
                 cell.applyBC(self.depth)
             else:
                 # Interior cell
-                cell.ordFlux[:, f, :] = lastCellFaceVal
+                cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
             # Sweep angle within the cell to update qin (inscatter source)
             cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
-            # Step through space
-            cell.ordFlux[:, 0, :] = (cell.ordFlux[:, f, :] + self.deltaX * cell.qin / (2. * np.abs(cell.sNmu))) / \
-                (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu)))
-            if f == 1:
-                cell.ordFlux[:, 2, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, f, :]
-                lastCellFaceVal = cell.ordFlux[:, 2, :]
-            if f == 2:
-                cell.ordFlux[:, 1, :] = 2. * cell.ordFlux[:, 0, :] - cell.ordFlux[:, f, :]
-                lastCellFaceVal = cell.ordFlux[:, 1, :]
+            # Step through space & angle
+            for o in range(cell.sNords):
+                cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
+                    (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
+                if f == 1:
+                    cell.ordFlux[:, 2, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
+                    lastCellFaceVal[:, o] = cell.ordFlux[:, 2, o]
+                if f == 2:
+                    cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
+                    lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
+            if cell.boundaryCond is not None:
+                cell.applyBC(self.depth)

@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
 class Cell1DSn(object):
@@ -106,11 +107,15 @@ class Cell1DSn(object):
         return self.qin
 
     def _computeFissionSource(self, g, chiNuFission, keff):
+        """
+        Compute the withen group fission source.
+        chiNuFission[g] is a row vector corresponding to all g'
+        """
         if self.multiplying:
             # multiplying medium source
             # note fission source is isotripic so each ordinate fission source
             # flux is equivillent
-            return (1 / keff / 2.0) * np.abs(self.sNmu) * \
+            return (1 / keff / 2.0) * np.abs(self.wN) * \
                 np.sum(chiNuFission[g] * self._evalScalarFlux(g))
         else:
             # need fixed source from user input
