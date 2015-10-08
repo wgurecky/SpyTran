@@ -129,7 +129,11 @@ class Cell1DSn(object):
             where n is the group
         returns vector of scattered ordinate fluxes
         """
-        return self._evalLegSource(g, skernel)
+        # remove diagonal entries from skernal.  We do not care about
+        # g == g' scatter (within grp scatter).
+        skMultiplier = np.ones((self.nG, self.nG)) - np.eye(self.nG)
+        # skMultiplier = np.ones((self.nG, self.nG))
+        return self._evalLegSource(g, skMultiplier * skernel)
 
     def _evalLegSource(self, g, skernel):
         """
@@ -142,11 +146,12 @@ class Cell1DSn(object):
             """
             Computes in-scattring into grp g reaction rate.
             """
-            gtgScatter = 0
-            for gprime in range(self.nG):
-                # sum over all g' for g' =/= g
-                if g != gprime:
-                    gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
+            # gtgScatter = 0
+            #for gprime in range(self.nG):
+            #     # sum over all g' for g' =/= g
+            #     if g != gprime:
+            #         gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
+            gtgScatter = np.sum(skernel[l, g, :] * self._evalVecLegFlux(g, l))
             return gtgScatter
         #
         weights = np.zeros(self.maxLegOrder + 1)
@@ -181,6 +186,21 @@ class Cell1DSn(object):
         legweights[l] = 1.0
         legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
                         self.wN * self.ordFlux[g, pos, :])
+        return (1 / 2.) * legsum
+
+    def _evalVecLegFlux(self, g, l, pos=0):
+        """
+        Vectorized version of legendre moment of flux routine (must faster)
+
+        group legendre group flux
+        scalar_flux_lg = (1/2) * sum_n(w_n * P_l * flux_n)
+        where l is the legendre order
+        and n is the ordinate iterate
+        """
+        legweights = np.zeros(self.maxLegOrder + 1)
+        legweights[l] = 1.0
+        legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
+                        self.wN * self.ordFlux[:, pos, :], axis=1)
         return (1 / 2.) * legsum
 
     def sweepEnergy(self, oi):
