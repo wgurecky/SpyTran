@@ -151,7 +151,7 @@ class Cell1DSn(object):
             #     # sum over all g' for g' =/= g
             #     if g != gprime:
             #         gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
-            gtgScatter = np.sum(skernel[l, g, :] * self._evalVecLegFlux(g, l))
+            gtgScatter = np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
             return gtgScatter
         #
         weights = np.zeros(self.maxLegOrder + 1)
@@ -188,7 +188,7 @@ class Cell1DSn(object):
                         self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * legsum
 
-    def _evalVecLegFlux(self, g, l, pos=0):
+    def _evalVecLegFlux(self, l, pos=0):
         """
         Vectorized version of legendre moment of flux routine (must faster)
 
@@ -261,6 +261,7 @@ class Sn1Dbc(object):
         faceDot = cell.sNmu * cell.faceNormals[face - 1]
         inwardDirs = np.where(faceDot < 0)
         cell.ordFlux[:, face, inwardDirs] = 0.0
+        # cell.ordFlux[:, face, :] = 0.0
 
     def applyFixedFluxBC():
         # only applied to un-collieded flux iter: depth=0, vac for all
