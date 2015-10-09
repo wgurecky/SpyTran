@@ -44,14 +44,14 @@ class test1DsnCell(unittest.TestCase):
 
     def testKeigenSweep(self):
         print("\n========= INITIATING K-EIGEN TEST ==========")
-        mesh1D = sn.Mesh1Dsn([0, 100], 1.0, pinMaterial, sN=2)
+        mesh1D = sn.Mesh1Dsn([0, 20], 1.0, pinMaterial, sN=2)
         bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         #
         mesh1D.setKeff(1.)
-        for pI in range(4):
+        for pI in range(3):
             # Perform source iterations
-            nSourceIterations = 5
+            nSourceIterations = 14
             fissionSourceOld = np.sum(mesh1D.fissionSrc())  # todo mult by width
             for si in range(nSourceIterations):
                 mesh1D.sweepMesh(2)
@@ -63,8 +63,8 @@ class test1DsnCell(unittest.TestCase):
         scalarFlux = mesh1D.getScalarFlux()
         import plotters.fluxEplot as flxPlt
         import plotters.scalarFluxPlot as sfp
-        flxPlt.plotFluxE(scalarFlux[50][::-1])
-        sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, 101., 1.))
+        flxPlt.plotFluxE(scalarFlux[10][::-1])
+        sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, 21., 1.))
 
 
 if __name__ == "__main__":

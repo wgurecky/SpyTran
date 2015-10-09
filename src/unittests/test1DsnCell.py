@@ -39,9 +39,19 @@ class test1DsnCell(unittest.TestCase):
         # group 1 0th legendre moment of flux should be 1.0 as leg(0) = 1.0
         self.assertAlmostEqual(cell._evalLegFlux(1, 0), 1.0, places=4)
         #
+        lthLegMomentOfFlux, lthLegMomentOfFluxVec = [], []
         for l in range(9):
-            lthLegMomentOfFlux = cell._evalLegFlux(1, l)
-            print(str(l) + "th leg moment of flux = " + str(lthLegMomentOfFlux))
+            lthLegMomentOfFlux.append(cell._evalLegFlux(1, l))
+            print(str(l) + "th leg moment of flux = " + str(lthLegMomentOfFlux[l]))
+        self.assertAlmostEqual(lthLegMomentOfFlux[0], 1.0)
+        self.assertAlmostEqual(lthLegMomentOfFlux[1], 0.0)
+        self.assertAlmostEqual(lthLegMomentOfFlux[2], 0.0)
+        # try vectorized approach
+        for l in range(9):
+            lthLegMomentOfFluxVec.append(cell._evalVecLegFlux(l))
+        self.assertAlmostEqual(lthLegMomentOfFluxVec[0][0], 1.0)
+        self.assertAlmostEqual(lthLegMomentOfFluxVec[1][0], 0.0)
+        self.assertAlmostEqual(lthLegMomentOfFluxVec[2][0], 0.0)
         #
         # repeat for S4
         print("\n S4 leg moments of flat unit group 1 flux in mu space")

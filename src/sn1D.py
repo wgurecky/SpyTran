@@ -155,8 +155,9 @@ class Mesh1Dsn(object):
 
     def resetFlux(self):
         """
-        In k-eigenvalue problems.  after each outer iteration we have to
-        reset the ordinate fluxes
+        In k-eigenvalue problems, after each outer power iteration, we have to
+        reset the ordinate fluxes to zero.
+        Also, reset the source iteration depth to 0.
         """
         for cell in self.cells:
             cell.resetTotOrdFlux()
@@ -172,7 +173,7 @@ class Mesh1Dsn(object):
         return np.array(totOrdFlux)
 
     def fissionSrc(self):
-        return np.dot(self.chiNuFission, self.getScalarFlux().T)
+        return np.dot(self.chiNuFission, self.getCellWidths() * self.getScalarFlux().T)
 
     def getScalarFlux(self):
         """
@@ -182,7 +183,13 @@ class Mesh1Dsn(object):
         for cell in self.cells:
             totScalarFlux.append(cell.getTotScalarFlux())
         totScalarFlux = np.array(totScalarFlux)
-        return totScalarFlux / np.sum(totScalarFlux)  # norm flux
+        return totScalarFlux / np.sum(totScalarFlux)  # norm flux to 1.
+
+    def getCellWidths(self):
+        deltaXs = []
+        for cell in self.cells:
+            deltaXs.append(cell.deltaX)
+        return np.array(deltaXs)
 
     def setKeff(self, k):
         self.keff = k
@@ -206,6 +213,9 @@ class Mesh1Dsn(object):
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
             # Sweep angle within the cell to update qin (inscatter source)
             cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
+            if self.depth >= 1:
+                # import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                pass
             # Step through space & angle
             # Only sweep through ordinates that have a component in same direction as
             # current sweep dir. Filter ords by dot product

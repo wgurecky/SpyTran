@@ -39,7 +39,7 @@ class Cell1DSn(object):
         #
         # ord flux vec: 0 is cell centered, 1 is left, 2 is right face
         self.ordFlux = np.ones((nGroups, 3, self.sNords))
-        self.totOrdFlux = np.zeros((nGroups, 3, self.sNords))
+        self.totOrdFlux = np.ones((nGroups, 3, self.sNords))
         self.qin = np.ones((nGroups, 3, self.sNords))  # scatter/fission source computed by scattering source iteration
         # fixed volumetric source
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
@@ -131,8 +131,9 @@ class Cell1DSn(object):
         """
         # remove diagonal entries from skernal.  We do not care about
         # g == g' scatter (within grp scatter).
-        skMultiplier = np.ones((self.nG, self.nG)) - np.eye(self.nG)
-        # skMultiplier = np.ones((self.nG, self.nG))
+        skMultiplier = np.ones((self.nG, self.nG))
+        # skMultiplier = np.ones((self.nG, self.nG)) - np.eye(self.nG)
+        #skMultiplier = np.ones((self.nG, self.nG)) - 2 * np.eye(self.nG)
         return self._evalLegSource(g, skMultiplier * skernel)
 
     def _evalLegSource(self, g, skernel):
@@ -146,11 +147,11 @@ class Cell1DSn(object):
             """
             Computes in-scattring into grp g reaction rate.
             """
-            # gtgScatter = 0
+            #gtgScatter = 0
             #for gprime in range(self.nG):
-            #     # sum over all g' for g' =/= g
-            #     if g != gprime:
-            #         gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
+            #    # sum over all g' for g' =/= g
+            #    if g != gprime:
+            #        gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
             gtgScatter = np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
             return gtgScatter
         #
@@ -169,10 +170,20 @@ class Cell1DSn(object):
         scalarFlux = np.sum(self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * scalarFlux
 
+    def _evalTotScalarFlux(self, g, pos=0):
+        """
+        group scalar flux evaluator
+        scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
+        n is the ordinate iterate
+        """
+        scalarFlux = np.sum(self.wN * self.totOrdFlux[g, pos, :])
+        return (1 / 2.) * scalarFlux
+
     def getTotScalarFlux(self, pos=0):
         scalarFlux = []
         for g in range(self.nG):
             scalarFlux.append(self._evalScalarFlux(g, pos))
+            #scalarFlux.append(self._evalTotScalarFlux(g, pos))
         return np.array(scalarFlux)
 
     def _evalLegFlux(self, g, l, pos=0):
