@@ -35,11 +35,13 @@ class Cell1DSn(object):
         self.wN = self.sNwDict[sNords]     # quadrature weights
         self.sNmu = self.sNmuDict[sNords]  # direction cosines
         self.maxLegOrder = legOrder  # remember to range(maxLegORder + 1)
+        self.legweights = np.zeros(legOrder + 1)
         self.nG = nGroups         # number of energy groups
         #
-        # ord flux vec: 0 is cell centered, 1 is left, 2 is right face
-        self.ordFlux = np.ones((nGroups, 3, self.sNords))
-        self.totOrdFlux = np.ones((nGroups, 3, self.sNords))
+        # ord flux vector: 0 is cell centered, 1 is left, 2 is right face
+        iguess = kwargs.pop('iFlux', np.ones((nGroups, 3, self.sNords)))
+        self.ordFlux = iguess
+        self.totOrdFlux = iguess
         self.qin = np.ones((nGroups, 3, self.sNords))  # scatter/fission source computed by scattering source iteration
         # fixed volumetric source
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
@@ -53,36 +55,44 @@ class Cell1DSn(object):
         self.boundaryCond = kwargs.pop('bc', None)  # none denotes interior cell
 
     def setBC(self, bc):
+        """
+        Assign boundary condition instance to cell.
+        """
         self.boundaryCond = Sn1Dbc(bc)
 
     def applyBC(self, depth):
+        """
+        Enforce the boundary condition in cell.  Compute/adjust the cell face
+        fluxes according to the boundary condition.
+        """
         if self.boundaryCond is not None:
             self.boundaryCond.applyBC(self, depth)
             return True
         else:
-            print("WARNING: You are trying to use a boundary condition in an interior cell.")
+            print("WARNING: You are trying to apply a boundary condition in an interior cell.")
             return False
 
     def resetTotOrdFlux(self):
         self.totOrdFlux = np.zeros((self.nG, 3, self.sNords))
 
+    def resetOrdFlux(self):
+        self.ordFlux = np.zeros((self.nG, 3, self.sNords))
+
     def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.
+        Perform scattering source iteration
 
         Scattering source iteration:
-        l = 0:
-            [Omega'.grad + sigma_t] * qflux^(m)_l = fixed_source + (fission_src?)
-        when l>0:
-            [Omega'.grad + sigma_t] * qflux^(m)_l =
-            sum(l, sigma_s_l(r, Omega.Omega') * qflux^(m-1)_l)
-        where m is the scattering souce iteration index
-        l is the direction ordinate
-
-        Note that the RHS does not require any space deriviatives to be computed.
-        sum the dummy qfluxes to obtain the true flux.
-        totOrdflux = sum(m, qflux^(m))
+        m = 0:
+            [Omega'.grad + sigma_t] * qflux^(m)_g = fixed_source + fission_src
+        when m>0:
+            [Omega'.grad + sigma_t] * qflux^(m)_g =
+            sum(o, sigma_s(r, g->g', Omega.Omega')_g * qflux^(m-1)_o)
+        m is the scattering souce iteration index
+        o is the direction ordinate
+        g is the group index
 
         As m-> inf.  fewer and fewer neutrons will be around to contribute to the
         mth scattering source.  qflux^(m) should tend to 0 at large m.
@@ -101,9 +111,10 @@ class Cell1DSn(object):
             for g in range(self.nG):
                 # compute gth group fission source
                 self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
-            #self.qin = self.qin + self.S
+            self.resetTotOrdFlux()
         elif not self.multiplying and depth == 0:
             self.qin = self.S
+            self.resetTotOrdFlux()
         return self.qin
 
     def _computeFissionSource(self, g, chiNuFission, keff):
@@ -115,8 +126,10 @@ class Cell1DSn(object):
             # multiplying medium source
             # note fission source is isotripic so each ordinate fission source
             # flux is equivillent
+            #return (1 / keff / 2.0) * np.abs(self.wN) * \
+            #    np.sum(chiNuFission[g] * self._evalScalarFlux(g))
             return (1 / keff / 2.0) * np.abs(self.wN) * \
-                np.sum(chiNuFission[g] * self._evalScalarFlux(g))
+                np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
             print("Fission source requested for Non multiplying medium.  FATALITY")
@@ -131,10 +144,9 @@ class Cell1DSn(object):
         """
         # remove diagonal entries from skernal.  We do not care about
         # g == g' scatter (within grp scatter).
-        skMultiplier = np.ones((self.nG, self.nG))
+        # skMultiplier = np.ones((self.nG, self.nG))
         # skMultiplier = np.ones((self.nG, self.nG)) - np.eye(self.nG)
-        #skMultiplier = np.ones((self.nG, self.nG)) - 2 * np.eye(self.nG)
-        return self._evalLegSource(g, skMultiplier * skernel)
+        return self._evalLegSource(g, skernel)
 
     def _evalLegSource(self, g, skernel):
         """
@@ -147,19 +159,13 @@ class Cell1DSn(object):
             """
             Computes in-scattring into grp g reaction rate.
             """
-            #gtgScatter = 0
-            #for gprime in range(self.nG):
-            #    # sum over all g' for g' =/= g
-            #    if g != gprime:
-            #        gtgScatter += skernel[l, g, gprime] * self._evalLegFlux(gprime, l)
             gtgScatter = np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
             return gtgScatter
         #
         weights = np.zeros(self.maxLegOrder + 1)
         for l in range(self.maxLegOrder + 1):
-            #weights[l] = (2 * l + 1) * skernel[l] * self._evalLegFlux(g, l)
             weights[l] = (2 * l + 1) * ggprimeInScatter(g, l)
-        return np.polynomial.legendre.legval(self.sNmu, weights)
+        return (1 / 2.) * np.polynomial.legendre.legval(self.sNmu, weights)
 
     def _evalScalarFlux(self, g, pos=0):
         """
@@ -169,6 +175,9 @@ class Cell1DSn(object):
         """
         scalarFlux = np.sum(self.wN * self.ordFlux[g, pos, :])
         return (1 / 2.) * scalarFlux
+
+    def sumOrdFlux(self):
+        self.totOrdFlux += self.ordFlux
 
     def _evalTotScalarFlux(self, g, pos=0):
         """
@@ -182,8 +191,7 @@ class Cell1DSn(object):
     def getTotScalarFlux(self, pos=0):
         scalarFlux = []
         for g in range(self.nG):
-            scalarFlux.append(self._evalScalarFlux(g, pos))
-            #scalarFlux.append(self._evalTotScalarFlux(g, pos))
+            scalarFlux.append(self._evalTotScalarFlux(g, pos))
         return np.array(scalarFlux)
 
     def _evalLegFlux(self, g, l, pos=0):
@@ -208,11 +216,11 @@ class Cell1DSn(object):
         where l is the legendre order
         and n is the ordinate iterate
         """
-        legweights = np.zeros(self.maxLegOrder + 1)
-        legweights[l] = 1.0
-        legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
-                        self.wN * self.ordFlux[:, pos, :], axis=1)
-        return (1 / 2.) * legsum
+        self.legweights *= 0.0
+        self.legweights[l] = 1.0
+        legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, self.legweights[:l+1]) *
+                        self.wN * (self.ordFlux[:, pos, :]), axis=1)
+        return legsum
 
     def sweepEnergy(self, oi):
         pass
@@ -263,16 +271,17 @@ class Sn1Dbc(object):
         # faceDot = cell.sNmu * cell.faceNormals[face - 1]
         # look for equal magnitude but opposite sign when assigning direction
         # pairs
-        directionPairs = []
-        for inwardDir, outwardDir in directionPairs:
-            cell.ordFlux[:, face, inwardDir] = cell.ordFlux[:, face, outwardDir]
+        #directionPairs = []
+        #for inwardDir, outwardDir in zip(directionPairs):
+        #    cell.ordFlux[:, face, inwardDir] = cell.ordFlux[:, face, outwardDir]
+        pass
 
     def applyVacBC(self, cell, face):
         # sets incomming flux to zero on designated face
         faceDot = cell.sNmu * cell.faceNormals[face - 1]
         inwardDirs = np.where(faceDot < 0)
         cell.ordFlux[:, face, inwardDirs] = 0.0
-        # cell.ordFlux[:, face, :] = 0.0
+        #cell.ordFlux[:, face, :] = 0.0
 
     def applyFixedFluxBC():
         # only applied to un-collieded flux iter: depth=0, vac for all

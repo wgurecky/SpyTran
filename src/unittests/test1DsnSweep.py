@@ -8,6 +8,10 @@ import utils.pinCellMatCalc as pcm
 mx.genMaterialDict('./materials/hw2')
 pinMaterial = pcm.createPinCellMat()
 
+# plotters
+import plotters.fluxEplot as flxPlt
+import plotters.scalarFluxPlot as sfp
+
 
 class test1DsnCell(unittest.TestCase):
 
@@ -41,30 +45,31 @@ class test1DsnCell(unittest.TestCase):
         nSourceIterations = 1
         for si in range(nSourceIterations):
             mesh1D.sweepMesh(2)
+        pass
 
     def testKeigenSweep(self):
         print("\n========= INITIATING K-EIGEN TEST ==========")
-        mesh1D = sn.Mesh1Dsn([0, 20], 1.0, pinMaterial, sN=2)
+        width, dX = 120, 2.00
+        mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=4)
         bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         #
+        fissionSrc = []
         mesh1D.setKeff(1.)
-        for pI in range(3):
+        fissionSrc.append(np.sum(mesh1D.fissionSrc()))  # todo mult by width
+        for pI in range(1):
             # Perform source iterations
-            nSourceIterations = 14
-            fissionSourceOld = np.sum(mesh1D.fissionSrc())  # todo mult by width
+            nSourceIterations = 90
             for si in range(nSourceIterations):
-                mesh1D.sweepMesh(2)
-            fissionSourceNew = np.sum(mesh1D.fissionSrc())
-            knew = mesh1D.keff * (fissionSourceNew / fissionSourceOld)
+                mesh1D.sweepMesh(1)
+            fissionSrc.append(np.sum(mesh1D.fissionSrc()))
+            knew = mesh1D.keff * (fissionSrc[-1] / fissionSrc[-2])
             print("Outter iteration: " + str(pI) + "  k-eff :" + str(knew))
-            mesh1D.resetFlux()
+            scalarFlux = mesh1D.getScalarFlux()
+            flxPlt.plotFluxE(scalarFlux[len(np.arange(0, width + dX, dX)) / 2][::-1])
+            sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, width + dX, dX))
             mesh1D.setKeff(knew)
-        scalarFlux = mesh1D.getScalarFlux()
-        import plotters.fluxEplot as flxPlt
-        import plotters.scalarFluxPlot as sfp
-        flxPlt.plotFluxE(scalarFlux[10][::-1])
-        sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, 21., 1.))
+            mesh1D.postSI()
 
 
 if __name__ == "__main__":

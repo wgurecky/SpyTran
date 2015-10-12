@@ -135,6 +135,9 @@ class Mesh1Dsn(object):
         """
         # Sweep space
         converged, i = False, 0
+        for cell in self.cells:
+            # compute the mth scattering source
+            cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
         while not converged:
             print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
@@ -143,18 +146,21 @@ class Mesh1Dsn(object):
             if i >= stopI:
                 # max number of space-angle sweeps to perform
                 converged = True
-        self.depth += 1  # increment scattering source iter
-        self._addOrdFlux()
+        self.depth += 1     # increment scattering source iter
+        self._addOrdFlux()  # add mth scattered flux to the running total
 
     def _addOrdFlux(self):
         '''
         add Nth collided ord flux to running total
         '''
         for cell in self.cells:
-            cell.totOrdFlux += cell.ordFlux
+            cell.sumOrdFlux()
+        #print(str(self.depth) + " depth: " + str(self.cells[50].totOrdFlux[8, 0, :]))
+        #print(str(self.depth) + " depth: " + str(self.cells[1].totOrdFlux[8, 0, :]))
 
-    def resetFlux(self):
+    def postSI(self):
         """
+        Post Scatering Iteraions.
         In k-eigenvalue problems, after each outer power iteration, we have to
         reset the ordinate fluxes to zero.
         Also, reset the source iteration depth to 0.
@@ -163,7 +169,11 @@ class Mesh1Dsn(object):
             cell.resetTotOrdFlux()
         self.depth = 0
 
-    def getFlux(self):
+    def _resetOrdFlux(self):
+        for cell in self.cells:
+            cell.resetOrdFlux()
+
+    def getOrdFlux(self):
         """
         getter for all groups and ordiante fluxes
         """
@@ -184,6 +194,7 @@ class Mesh1Dsn(object):
             totScalarFlux.append(cell.getTotScalarFlux())
         totScalarFlux = np.array(totScalarFlux)
         return totScalarFlux / np.sum(totScalarFlux)  # norm flux to 1.
+        #return totScalarFlux  # norm flux to 1.
 
     def getCellWidths(self):
         deltaXs = []
@@ -208,20 +219,25 @@ class Mesh1Dsn(object):
         for cell in cellList:
             if cell.boundaryCond is not None:
                 cell.applyBC(self.depth)
+                # TODO: BC assignment is broken.  Force temp fix for now
+                cell.ordFlux[:, f, :] = 0.0
             else:
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
             # Sweep angle within the cell to update qin (inscatter source)
-            cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
+            # cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
             if self.depth >= 1:
-                # import pdb; pdb.set_trace()  # XXX BREAKPOINT
                 pass
             # Step through space & angle
             # Only sweep through ordinates that have a component in same direction as
             # current sweep dir. Filter ords by dot product
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
-            ordsInSweepDir = np.where(dotDir > 0.)
+            ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
+                if cell.centroid == 5.0:
+                    # FOR DEBUGING ONLY
+                    # import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
@@ -230,5 +246,10 @@ class Mesh1Dsn(object):
                 if f == 2:
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
+            if np.any(cell.ordFlux[:, :, :] < 0.0):
+                print("WARNING: Negative flux detected! Refine mesh.")
+                refineFactor = 2.  # TODO: compute refinement factor on the fly
+                raise Exception('coarse', refineFactor)
             if cell.boundaryCond is not None:
                 cell.applyBC(self.depth)
+                cell.ordFlux[:, f, :] = 0.0
