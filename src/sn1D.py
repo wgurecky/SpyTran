@@ -165,8 +165,8 @@ class Mesh1Dsn(object):
         reset the ordinate fluxes to zero.
         Also, reset the source iteration depth to 0.
         """
-        for cell in self.cells:
-            cell.resetTotOrdFlux()
+        # for cell in self.cells:
+        #     cell.resetTotOrdFlux()
         self.depth = 0
 
     def _resetOrdFlux(self):
@@ -193,8 +193,8 @@ class Mesh1Dsn(object):
         for cell in self.cells:
             totScalarFlux.append(cell.getTotScalarFlux())
         totScalarFlux = np.array(totScalarFlux)
-        return totScalarFlux / np.sum(totScalarFlux)  # norm flux to 1.
-        #return totScalarFlux  # norm flux to 1.
+        #return totScalarFlux / np.sum(totScalarFlux)  # norm flux to 1.
+        return totScalarFlux
 
     def getCellWidths(self):
         deltaXs = []
@@ -216,28 +216,34 @@ class Mesh1Dsn(object):
             cellList = reversed(self.cells)
         else:
             cellList = self.cells
+        blowoff = False
         for cell in cellList:
-            if cell.boundaryCond is not None:
+            if cell.boundaryCond is not None and not blowoff:
                 cell.applyBC(self.depth)
-                # TODO: BC assignment is broken.  Force temp fix for now
-                cell.ordFlux[:, f, :] = 0.0
+                blowoff = True
+                # FOR BC DEBUG ONLY
+                # if f == 1:
+                #     cell.ordFlux[:, f, 0] = 0.0
+                #     cell.ordFlux[:, f, 1] = 0.0
+                #     #cell.ordFlux[:, f, 0] = cell.ordFlux[:, f, 3]
+                #     #cell.ordFlux[:, f, 1] = cell.ordFlux[:, f, 2]
+                #     blowoff = True
+                # elif f == 2:
+                #     cell.ordFlux[:, f, 2] = 0.0
+                #     cell.ordFlux[:, f, 3] = 0.0
+                #     #cell.ordFlux[:, f, 2] = cell.ordFlux[:, f, 1]
+                #     #cell.ordFlux[:, f, 3] = cell.ordFlux[:, f, 0]
+                #     blowoff = True
+                # FOR BC DEBUG ONLY
             else:
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
-            # Sweep angle within the cell to update qin (inscatter source)
-            # cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
-            if self.depth >= 1:
-                pass
             # Step through space & angle
             # Only sweep through ordinates that have a component in same direction as
             # current sweep dir. Filter ords by dot product
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
-                if cell.centroid == 5.0:
-                    # FOR DEBUGING ONLY
-                    # import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
@@ -250,6 +256,3 @@ class Mesh1Dsn(object):
                 print("WARNING: Negative flux detected! Refine mesh.")
                 refineFactor = 2.  # TODO: compute refinement factor on the fly
                 raise Exception('coarse', refineFactor)
-            if cell.boundaryCond is not None:
-                cell.applyBC(self.depth)
-                cell.ordFlux[:, f, :] = 0.0
