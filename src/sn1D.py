@@ -139,7 +139,7 @@ class Mesh1Dsn(object):
             # compute the mth scattering source
             cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
         while not converged:
-            print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
+            # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -207,8 +207,10 @@ class Mesh1Dsn(object):
 
     def _sweepDir(self, f):
         """
-        f is either 1 or 2 in 1D
+        Step through space & angle
+
         f stands for face
+        f is either 1 or 2 in 1D
         1 is left cell face,  2 is right face
         """
         lastCellFaceVal = np.zeros((self.cells[0].nG, self.cells[0].sNords))
@@ -218,27 +220,12 @@ class Mesh1Dsn(object):
             cellList = self.cells
         blowoff = False
         for cell in cellList:
-            if cell.boundaryCond is not None and not blowoff:
+            if hasattr(cell, 'boundaryCond') and not blowoff:
                 cell.applyBC(self.depth)
                 blowoff = True
-                # FOR BC DEBUG ONLY
-                # if f == 1:
-                #     cell.ordFlux[:, f, 0] = 0.0
-                #     cell.ordFlux[:, f, 1] = 0.0
-                #     #cell.ordFlux[:, f, 0] = cell.ordFlux[:, f, 3]
-                #     #cell.ordFlux[:, f, 1] = cell.ordFlux[:, f, 2]
-                #     blowoff = True
-                # elif f == 2:
-                #     cell.ordFlux[:, f, 2] = 0.0
-                #     cell.ordFlux[:, f, 3] = 0.0
-                #     #cell.ordFlux[:, f, 2] = cell.ordFlux[:, f, 1]
-                #     #cell.ordFlux[:, f, 3] = cell.ordFlux[:, f, 0]
-                #     blowoff = True
-                # FOR BC DEBUG ONLY
             else:
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
-            # Step through space & angle
             # Only sweep through ordinates that have a component in same direction as
             # current sweep dir. Filter ords by dot product
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
@@ -249,7 +236,7 @@ class Mesh1Dsn(object):
                 if f == 1:
                     cell.ordFlux[:, 2, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 2, o]
-                if f == 2:
+                elif f == 2:
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):

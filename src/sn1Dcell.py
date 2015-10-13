@@ -20,10 +20,12 @@ class Cell1DSn(object):
     """
     # STANDARD ORDINATES AND FLUX WEIGHTS FOR STD QUADRATURE SET
     sNwDict = {2: np.array([1.0, 1.0]),
-               4: np.array([0.3478548451, 0.6521451549, 0.6521451549, 0.3478548451])
+               4: np.array([0.3478548451, 0.6521451549, 0.6521451549, 0.3478548451]),
+               8: np.array([0.1012, 0.2224, 0.3137, 0.3627, 0.3627, 0.3137, 0.2224, 0.1012])
                }
     sNmuDict = {2: np.array([0.5773502691, -0.5773502691]),
-                4: np.array([0.8611363115, 0.3399810435, -0.3399810435, -0.8611363115])
+                4: np.array([0.8611363115, 0.3399810435, -0.3399810435, -0.8611363115]),
+                8: np.array([0.9603, 0.7967, 0.5255, 0.1834, -0.1834, -0.5255, -0.7967, -0.9603])
                 }
 
     def __init__(self, xpos, deltaX, nGroups=10, legOrder=8, sNords=2, **kwargs):
@@ -53,7 +55,9 @@ class Cell1DSn(object):
                 self.S = np.zeros((nGroups, 3, self.sNords))
                 self.multiplying = False
         # set bc, if any given
-        self.boundaryCond = kwargs.pop('bc', None)  # none denotes interior cell
+        bc = kwargs.pop('bc', None)  # none denotes interior cell
+        if bc is not None:
+            self.setBC(bc)
 
     def setBC(self, bc):
         """
@@ -66,7 +70,7 @@ class Cell1DSn(object):
         Enforce the boundary condition in cell.  Compute/adjust the cell face
         fluxes according to the boundary condition.
         """
-        if self.boundaryCond is not None:
+        if hasattr(self, 'boundaryCond'):
             self.boundaryCond.applyBC(self, depth)
             return True
         else:
@@ -127,10 +131,10 @@ class Cell1DSn(object):
             # multiplying medium source
             # note fission source is isotripic so each ordinate fission source
             # flux is equivillent
-            return (1 / keff / 2.0) * np.abs(self.wN) * \
-                np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
-            #return (1 / keff / 1.0) * \
+            #return (1 / keff / 2.0) * np.abs(self.wN) * \
             #    np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
+            return (1 / keff / ((8. / self.sNords))) * (np.abs(self.wN) / 2.) * \
+                np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
             print("Fission source requested for Non multiplying medium.  FATALITY")
