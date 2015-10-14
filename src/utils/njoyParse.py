@@ -99,10 +99,10 @@ def convertTableRows2np(tableRows):
 
 
 def sciNoteFix(numberStr):
-    pattern = r'\+'
+    pattern = r'\d\+'
     repl = r'e+'
     numberStr = re.sub(pattern, repl, numberStr)
-    pattern = r'\-'
+    pattern = r'\d\-'
     repl = r'e-'
     return re.sub(pattern, repl, numberStr)
 
@@ -147,7 +147,8 @@ def xsWrite(propsDict, outFileName):
                 if entry[2] == 0:
                     for l in range(int(lord) + 1):
                         if l == 0:
-                            f.write(str(int(table[i + l][0])) + "  " + str(int(table[i + l][1])) + "  ")
+                            f.write(str(int(table[i + l][0])) + "  " + str(int(table[i + l][1])) + "  " +
+                                    str("%.4e" % table[i + l][3]) + "  ")
                         else:
                             f.write(str("%.4e" % table[i + l][3]) + "  ")
                     f.write('\n')
