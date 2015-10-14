@@ -92,7 +92,7 @@ def convertTableRows2np(tableRows):
             if table is None:
                 print("Warning: Table conversion failure. Blank table.")
             else:
-                return np.array(table[0] + table[1])
+                return np.array(sum(table, []))
     except:
         # we have a str lurking in the table
         print("Warning: Failure to convert the table into a numpy array")
