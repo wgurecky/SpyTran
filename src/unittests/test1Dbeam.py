@@ -9,7 +9,7 @@ mx.genMaterialDict('./materials/hw2')
 pinMaterial = pcm.createPinCellMat()
 
 # plotters
-# import plotters.fluxEplot as flxPlt
+import plotters.fluxEplot as flxPlt
 import plotters.scalarFluxPlot as sfp
 
 
@@ -38,6 +38,7 @@ class test1Dbeam(unittest.TestCase):
         for g in range(len(srcEnergy)):
             sfp.plot1DScalarFlux(scalarFlux[:][:, g], np.arange(0, width + dX, dX), True)
             sfp.plot1DNeutronND(scalarFlux[:][:, g], np.arange(0, width + dX, dX), g, True)
+        flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
 
 
 if __name__ == "__main__":
