@@ -45,15 +45,17 @@ class Cell1DSn(object):
         iguess = kwargs.pop('iFlux', np.ones((nGroups, 3, self.sNords)))
         self.ordFlux = iguess
         self.totOrdFlux = iguess
-        self.qin = np.ones((nGroups, 3, self.sNords))  # scatter/fission source computed by scattering source iteration
-        # fixed volumetric source
+        self.qin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
+        # optional volumetric source (none by default, fission possible)
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
+        self.multiplying = False
         if type(self.S) is str:
             if self.S == 'fission':
                 self.multiplying = True
             else:
                 self.S = np.zeros((nGroups, 3, self.sNords))
-                self.multiplying = False
+        elif self.S is None:
+            self.S = np.zeros((nGroups, 3, self.sNords))
         # set bc, if any given
         bc = kwargs.pop('bc', None)  # none denotes interior cell
         if bc is not None:
@@ -260,6 +262,8 @@ class Sn1Dbc(object):
     def __init__(self, bc):
         self.vacBC = bc.pop('vac', None)
         self.refBC = bc.pop('ref', None)
+        self.fixBC = bc.pop('fix', None)
+        self.fixNBC = bc.pop('fixN', None)
         self.whiteBC = bc.pop('white', None)
 
     def applyBC(self, cell, depth):
@@ -275,14 +279,26 @@ class Sn1Dbc(object):
             except:
                 face = self.refBC
             self.applyRefBC(cell, face)
+        elif self.fixBC is not None:
+            try:
+                self.applyFixedFluxBC(cell, self.fixBC[0], self.fixBC[1])
+            except:
+                sys.exit("Incorrect format for fixed boundary condition.")
+        elif self.fixNBC is not None:
+            try:
+                self.applyFixedNormFluxBC(cell, self.fixNBC[0], self.fixNBC[1])
+            except:
+                sys.exit("Incorrect format for fixed boundary condition.")
         else:
             pass
 
     def applyRefBC(self, cell, face):
-        # reflects cell outgoing flux at boundary to incomming flux
-        # ex: flux_2 == flux_1
-        # look for equal magnitude but opposite sign when assigning direction
-        # pairs
+        """
+        reflects cell outgoing flux at boundary to incomming flux
+        ex: flux_2 == flux_1
+        look for equal magnitude but opposite sign when assigning direction
+        pairs
+        """
         # directionPairs = []
         faceDot = cell.sNmu * cell.faceNormals[face - 1]
         # when dot product is (-) direction is oposite of outward normal to face
@@ -304,18 +320,36 @@ class Sn1Dbc(object):
             cell.ordFlux[:, face, iDir] = cell.ordFlux[:, face, outDir[0][0]]
 
     def applyVacBC(self, cell, face):
-        # sets incomming flux to zero on designated face
+        """
+        Sets all incomming fluxes equal to 0
+        """
         faceDot = cell.sNmu * cell.faceNormals[face - 1]
         inwardDirs = np.where(faceDot < 0)
         cell.ordFlux[:, face, inwardDirs] = 0.0
 
-    def applyFixedFluxBC():
-        # only applied to un-collieded flux iter: depth=0, vac for all
-        # others.
-        # sets incomming flux to user specified val
-        pass
+    def applyFixedFluxBC(self, cell, face, bc):
+        """
+        sets incomming flux to user specified val
+        """
+        cell.ordFlux[:, face, :] = bc
+
+    def applyFixedNormFluxBC(self, cell, face, bc):
+        """
+        Sets incomming flux in direction normal to the inward cell face equal
+        to user set value.  less flexible than applyFixedFluxBC, but far
+        more convinient for uni-directional beam problems.
+        """
+        faceDot = cell.sNmu * cell.faceNormals[face - 1]
+        inwardDirs = np.where(faceDot < 0)
+        for g in range(cell.nG):
+            for inD in inwardDirs:
+                # multiply by cosines of ordinate angles
+                # scale by user set magnitude bc[0]
+                cell.ordFlux[g, face, inD] = np.abs(cell.sNmu[inD]) * bc[1][g]
 
     def applyWhiteBC():
-        # Summs all out going flux and redistributes evenly over all inward
-        # facing directions.
+        """
+        Similar to reflecting boundary, but reflected flux is distributed
+        isotropically.
+        """
         pass

@@ -60,11 +60,11 @@ class test1DsnCell(unittest.TestCase):
         fissionSrc.append(np.sum(mesh1D.fissionSrc()))  # todo mult by width
         scalarFlux = mesh1D.getScalarFlux()
         sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, width + dX, dX))
-        for pI in range(10):
+        for pI in range(8):
             # Perform source iterations
-            nSourceIterations = 100
+            nSourceIterations = 75
             for si in range(nSourceIterations):
-                mesh1D.sweepMesh(8)
+                mesh1D.sweepMesh(7)
             fissionSrc.append(np.sum(mesh1D.fissionSrc()))
             knew = mesh1D.keff * (fissionSrc[-1] / fissionSrc[-2])
             print("Outter iteration: " + str(pI) + "  k-eff :" + str(knew))
