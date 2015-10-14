@@ -286,7 +286,10 @@ class Sn1Dbc(object):
                 sys.exit("Incorrect format for fixed boundary condition.")
         elif self.fixNBC is not None:
             try:
-                self.applyFixedNormFluxBC(cell, self.fixNBC[0], self.fixNBC[1])
+                if depth == 0:
+                    self.applyFixedNormFluxBC(cell, self.fixNBC[0], self.fixNBC[1])
+                else:
+                    self.applyVacBC(cell, self.fixNBC[0])
             except:
                 sys.exit("Incorrect format for fixed boundary condition.")
         else:
@@ -345,7 +348,8 @@ class Sn1Dbc(object):
             for inD in inwardDirs:
                 # multiply by cosines of ordinate angles
                 # scale by user set magnitude bc[0]
-                cell.ordFlux[g, face, inD] = np.abs(cell.sNmu[inD]) * bc[1][g]
+                # factor of 2 is for reflection about x axis in 1D
+                cell.ordFlux[g, face, inD] = 2. * bc[0] * np.abs(cell.sNmu[inD]) * bc[1][g]
 
     def applyWhiteBC():
         """

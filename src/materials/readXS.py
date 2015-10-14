@@ -7,16 +7,12 @@ def readXS(inFileName, tableFormat='dumb'):
     Populate a dictionary of material properties given a
     file formatted in a basic xs. format.
     '''
-    #propsDict = {'total': None,
-    #             'chi': None,
-    #             'nufission': None,
-    #             'skernel': None
-    #             }
     propsDict = {}
     reFlags = {'total': "TOTAL",
                'chi': "CHI",
                'nufission': "NUFISSION",
-               'skernel': "SKERNEL"
+               'skernel': "SKERNEL",
+               'ffactor': "FFACTOR"
                }
     for key, val in reFlags.iteritems():
         reFlags[key] = re.compile(val)
@@ -56,6 +52,8 @@ def fixNJOYdata(propsDict):
             propsDict['chi'] = np.flipud(propsDict['chi'][:, 1])
     if 'total' in propsDict.keys():
         propsDict['total'] = np.flipud(propsDict['total'][:, 1])
+    if 'ffactor' in propsDict.keys():
+        propsDict['ffactor'] = np.flipud(propsDict['ffactor'][:, 1])
     if 'nufission' in propsDict.keys():
         if not propsDict['nufission'].any():
             # if no nufission data around, remove nufission key from dict.
