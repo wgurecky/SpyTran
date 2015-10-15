@@ -80,10 +80,12 @@ class Mesh1Dsn(object):
         self.totalXs = material.macroProp['Ntotal']
         self.skernel = material.macroProp['Nskernel']
         if 'chi' in material.macroProp.keys():
+            self.nuFission = material.macroProp['Nnufission']
             self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
                                        np.array([material.macroProp['Nnufission']]))
             src = 'fission'
         else:
+            self.nuFission = None
             self.chiNuFission = None
             src = None
         # initilize all cells in the mesh.
@@ -147,7 +149,7 @@ class Mesh1Dsn(object):
                 # max number of space-angle sweeps to perform
                 converged = True
         self.depth += 1     # increment scattering source iter
-        self._addOrdFlux()  # add mth scattered flux to the running total
+        return self._addOrdFlux()  # add mth scattered flux to the running total
 
     def _addOrdFlux(self):
         '''
@@ -155,8 +157,10 @@ class Mesh1Dsn(object):
         '''
         for cell in self.cells:
             cell.sumOrdFlux()
-        #print(str(self.depth) + " depth: " + str(self.cells[50].totOrdFlux[8, 0, :]))
-        #print(str(self.depth) + " depth: " + str(self.cells[1].totOrdFlux[8, 0, :]))
+        if self.depth >= 1. and np.mod(self.depth, 5) == 0:
+            return self.computeResid()
+        else:
+            return 1.0
 
     def postSI(self):
         """
@@ -183,7 +187,7 @@ class Mesh1Dsn(object):
         return np.array(totOrdFlux)
 
     def fissionSrc(self):
-        return np.dot(self.chiNuFission, self.getCellWidths() * self.getScalarFlux().T)
+        return np.dot(self.nuFission, self.getCellWidths() * self.getScalarFlux().T)
 
     def getScalarFlux(self):
         """
@@ -195,6 +199,16 @@ class Mesh1Dsn(object):
         totScalarFlux = np.array(totScalarFlux)
         #return totScalarFlux / np.sum(totScalarFlux)  # norm flux to 1.
         return totScalarFlux
+
+    def computeResid(self):
+        residVec = []
+        for cell in self.cells:
+            residVec.append(cell.getFluxRatio())
+        residVec = np.array(residVec)
+        resid = np.max(residVec)
+        print("Scattering Iteration: " + str(self.depth) +
+              ".   Flux Residual= " + str("%.5e" % resid))
+        return resid
 
     def getCellWidths(self):
         deltaXs = []

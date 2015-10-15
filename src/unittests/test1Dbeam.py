@@ -33,11 +33,13 @@ class test1Dbeam(unittest.TestCase):
                -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         for si in range(180):
-            print("Scattering Iteration: " + str(si))
-            mesh1D.sweepMesh(30)
+            # print("Scattering Iteration: " + str(si))
+            resid = mesh1D.sweepMesh(30)
+            if resid < 1e-5:
+                break
         scalarFlux = mesh1D.getScalarFlux()
         for g in range(len(srcEnergy)):
-            sfp.plot1DScalarFlux(scalarFlux[:][:, g], np.arange(0, width + dX, dX))
+            sfp.plot1DScalarFlux(scalarFlux[:][:, g], np.arange(0, width + dX, dX), label='Group ' + str(g + 1))
             sfp.plot1DNeutronND(scalarFlux[:][:, g], np.arange(0, width + dX, dX), g)
         flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
 

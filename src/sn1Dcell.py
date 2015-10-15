@@ -200,6 +200,13 @@ class Cell1DSn(object):
             scalarFlux.append(self._evalTotScalarFlux(g, pos))
         return np.array(scalarFlux)
 
+    def getFluxRatio(self, pos=0):
+        partialFlux, totOrdFlux = 0, 0
+        for g in range(self.nG):
+            partialFlux += self._evalScalarFlux(g)
+            totOrdFlux += self._evalTotScalarFlux(g)
+        return partialFlux / totOrdFlux
+
     def _evalLegFlux(self, g, l, pos=0):
         """
         group legendre group flux
