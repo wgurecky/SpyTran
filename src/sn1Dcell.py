@@ -46,6 +46,7 @@ class Cell1DSn(object):
         self.ordFlux = iguess
         self.totOrdFlux = iguess
         self.qin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
+        self.previousQin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
         # optional volumetric source (none by default, fission possible)
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
         self.multiplying = False
@@ -85,7 +86,7 @@ class Cell1DSn(object):
     def resetOrdFlux(self):
         self.ordFlux = np.zeros((self.nG, 3, self.sNords))
 
-    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0):
+    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.5):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.
@@ -111,9 +112,14 @@ class Cell1DSn(object):
             - :rtype: return type
         """
         if depth >= 1:
-            for g in range(self.nG):
-                # obtain group scattering sources
-                self.qin[g, 0, :] = self._evalScatterSource(g, skernel)
+            if depth >= 2:
+                for g in range(self.nG):
+                    self.qin[g, 0, :] = overRlx * (self._evalScatterSource(g, skernel) - self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
+                self.previousQin = self.qin
+            else:
+                for g in range(self.nG):
+                    self.qin[g, 0, :] = self._evalScatterSource(g, skernel)
+                self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
                 # compute gth group fission source
