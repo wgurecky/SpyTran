@@ -50,7 +50,7 @@ class test1DsnCell(unittest.TestCase):
     def testKeigenSweep(self):
         print("\n========= INITIATING K-EIGEN TEST ==========")
         width, dX = 1.0, 0.05
-        mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=8)
+        mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=4)
         #bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}  # vac bc test
         bcs = {0: {'ref': (1, 0)}, -1: {'ref': (2, 0)}}   # ref bc test
         mesh1D.setBCs(bcs)

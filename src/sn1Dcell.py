@@ -135,7 +135,7 @@ class Cell1DSn(object):
             # flux is equivillent
             #return (1 / keff / 2.0) * np.abs(self.wN) * \
             #    np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
-            return (1 / keff / ((8. / self.sNords))) * (np.abs(self.wN) / 2.) * \
+            return (1 / keff / 2.0) * self.wN * \
                 np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
@@ -171,7 +171,7 @@ class Cell1DSn(object):
         weights = np.zeros(self.maxLegOrder + 1)
         for l in range(self.maxLegOrder + 1):
             weights[l] = (2 * l + 1) * ggprimeInScatter(g, l)
-        return (1 / 2.) * np.polynomial.legendre.legval(self.sNmu, weights)
+        return np.polynomial.legendre.legval(self.sNmu, weights)
 
     def _evalScalarFlux(self, g, pos=0):
         """
@@ -180,7 +180,7 @@ class Cell1DSn(object):
         n is the ordinate iterate
         """
         scalarFlux = np.sum(self.wN * self.ordFlux[g, pos, :])
-        return (1 / 2.) * scalarFlux
+        return 0.5 * scalarFlux
 
     def sumOrdFlux(self):
         self.totOrdFlux += self.ordFlux
@@ -192,7 +192,7 @@ class Cell1DSn(object):
         n is the ordinate iterate
         """
         scalarFlux = np.sum(self.wN * self.totOrdFlux[g, pos, :])
-        return (1 / 2.) * scalarFlux
+        return 0.5 * scalarFlux
 
     def getTotScalarFlux(self, pos=0):
         scalarFlux = []
@@ -211,7 +211,7 @@ class Cell1DSn(object):
         legweights[l] = 1.0
         legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, legweights) *
                         self.wN * self.ordFlux[g, pos, :])
-        return (1 / 2.) * legsum
+        return 0.5 * legsum
 
     def _evalVecLegFlux(self, l, pos=0):
         """
@@ -229,7 +229,7 @@ class Cell1DSn(object):
         #                self.wN * (self.ordFlux[:, pos, :]), axis=1)
         legsum = np.sum(spc.eval_legendre(l, self.sNmu) *
                         self.wN * (self.ordFlux[:, pos, :]), axis=1)
-        return legsum
+        return 0.5 * legsum
 
     def sweepEnergy(self, oi):
         pass
