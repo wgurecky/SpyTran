@@ -53,7 +53,7 @@ def fixNJOYdata(propsDict):
     if 'total' in propsDict.keys():
         propsDict['total'] = np.flipud(propsDict['total'][:, 1])
     if 'ffactor' in propsDict.keys():
-        propsDict['ffactor'] = np.flipud(propsDict['ffactor'][:, 1])
+        propsDict['ffactor'] = np.flipud(propsDict['ffactor'][:, 1:])
     if 'nufission' in propsDict.keys():
         if not propsDict['nufission'].any():
             # if no nufission data around, remove nufission key from dict.
