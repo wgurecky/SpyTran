@@ -1,7 +1,9 @@
 import sys
+import scipy.interpolate as spi
 import numpy as np
 from readXSdatabase import readXSFolder
 from globalMatLib import matLib
+from copy import deepcopy
 
 
 def updateAtomicMass(matLib=matLib):
@@ -149,6 +151,59 @@ class mixedMat(object):
                         self.macroProp['N' + key] = self.nDdict[material] * value
                 else:
                     pass
+
+    def _computeBackgroundXsec(self):
+        """
+        Must be done after self.macroProp['Ntotal'] is defined.  i.e. after
+        the material has been "mixed".
+
+        Computes sig_b_m = sum_n(N_n * sig_tn) / N_m
+        background cross section for species m
+        sum over all other isotopes, n.
+        """
+        for i, (material, data) in enumerate(self.microDat.iteritems()):
+            allOtherTotalMacroXs = self.macroProp['Ntotal'] - self.nDdict[material] * self.microDat[material]['total']
+            self.microDat[material]['sig_b'] = allOtherTotalMacroXs / self.nDdict[material]
+        self._computeSelfSheildFactor()
+
+    def _computeSelfSheildFactor(self, dilutionGrid=np.array([1e5, 1e3, 1e2, 1e1, 1e0, 1e-1])):
+        """
+        Interpolates the self sheilding factor (ffactor) data for each isotope
+        in the mixture based on the isotope's background cross section.
+        """
+        dilutionGrid = np.append(dilutionGrid, 0.0)
+        for i, (material, data) in enumerate(self.microDat.iteritems()):
+            self.microDat[material]['f'] = np.ones(len(self.microDat[material]['total']))
+            try:
+                for g, gffactors in enumerate(self.microDat[material]['ffactor']):
+                    gffactors = np.append(gffactors, gffactors[-1])
+                    fn_sig_b = spi.interp1d(dilutionGrid, gffactors, kind='linear', fill_value=1.0, bounds_error=False)
+                    self.microDat[material]['f'][g] = fn_sig_b(self.microDat[material]['sig_b'][g])
+            except:
+                print("WARNING: No f-factor data availible in XS file. Setting f factor to 1.0 for iso: " + str(material))
+
+    def selfSheild(self):
+        """
+        Multiply all micro cross sections by ss factor (ffactor) and
+        recompute macroscopic cross sections.
+        Return a sheilded version of this class instance.  This is done to
+        preserve the micro-cross section data of the original mixed material.
+        Need to figure out how to "undo" self sheilding, for instance, if we
+        want to modify a mixed material (which has already been self sheilded) and
+        self sheild _again_.
+        """
+        ss_self = deepcopy(self)
+        ss_self._computeBackgroundXsec()
+        for i, (material, data) in enumerate(ss_self.microDat.iteritems()):
+            ss_self.microDat[material]['total'] *= ss_self.microDat[material]['f']
+            ss_self.microDat[material]['skernel'] *= ss_self.microDat[material]['f']
+            try:
+                ss_self.microDat[material]['nufission'] *= ss_self.microDat[material]['f']
+            except:
+                # non-fissile isotope
+                pass
+        ss_self._updateDB()
+        return ss_self
 
     def _computeAvgProps(self):
         for i, (material, data) in enumerate(self.microDat.iteritems()):

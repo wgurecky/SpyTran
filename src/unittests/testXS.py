@@ -28,6 +28,19 @@ class test1Dbeam(unittest.TestCase):
         print("Thermal XS diff: " + str(xsAt00253ev - totxs_ssheild[-2]) + " [b]")
         xsplt.xsPlot(np.ones(10) * xsAt00253ev, label='XS at 0.0253eV [KAERI]')
 
+    def testSSheild(self):
+        testMat = mx.mixedMat({'fe56': 0.5, 'u235': 0.5})
+        testMat.setDensity(10.0)
+        testMat._computeBackgroundXsec()
+        print("Ffactors for fe56")
+        print(testMat.microDat['fe56']['f'])
+        print("Ffactors for u235")
+        print(testMat.microDat['u235']['f'])
+        ssTestMat = testMat.selfSheild()
+        print("Self-sheilded Macro cross sections [1/cm] for fe56, u235 mix:")
+        print(ssTestMat.macroProp['Ntotal'])
+        print("Inf Dilute cross sections [1/cm] for fe56, u235 mix:")
+        print(testMat.macroProp['Ntotal'])
 
 if __name__ == "__main__":
     unittest.main()
