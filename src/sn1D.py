@@ -61,10 +61,48 @@ class SubDomain(object):
     each inner iteration is performed
     """
     def __init__(self, mat, bounds):
-        pass
+        self.regions = []    # contains mesh regions
+        self.sweepTree = []  # constains (region, cell) tuples
 
-    def updateFlux(self):
-        # perform inner sweeps on subdomain
+    def addRegion(self, mesh1D):
+        self.regions.append(mesh1D)
+
+    def buildSweepTree(self):
+        minXPos, minXNodeID = self._findMinX()
+        cellDistanceArray = self._computeDistance(minXPos, minXNodeID)  # distance of all cells to the "min X node"
+        # sort distance array based on distances to min X cell
+        cellDistanceArray = np.sort(cellDistanceArray, axis=2)
+        for w, cellD in enumerate(cellDistanceArray):
+            self.sweepTree.append((cellD[0], cellD[1]))
+
+    def getTotalCellsInDomain(self):
+        totCells = 0
+        for j, region in enumerate(self.regions):
+            totCells += len(region.cells)
+        return totCells
+
+    def _computeDistance(self, minXPos, minXNodeID):
+        distArray, w = np.zeros((self.getTotalCellsInDomain(), 3)), 0
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                distArray[w] = np.array([j, i, abs(minXPos - cell.centroid)])
+                w += 1
+        return distArray
+
+    def _findMinX(self):
+        minXPos = 1.e10
+        # regions are indexed by j
+        # within a region, cells are indexed by i
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                if cell.centroid < minXPos:
+                    minXNodeID = (j, i)
+                    minXPos = cell.centroid
+                else:
+                    pass
+        return minXPos, minXNodeID
+
+    def sweepSubDomain(self):
         pass
 
 
