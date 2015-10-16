@@ -255,5 +255,7 @@ class Mesh1Dsn(object):
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
                 print("WARNING: Negative flux detected! Refine mesh.")
+                maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.totalXs)
+                print("Max Step size in 1D: " + str(maxStepSize))
                 refineFactor = 2.  # TODO: compute refinement factor on the fly
                 raise Exception('coarse', refineFactor)

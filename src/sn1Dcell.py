@@ -86,7 +86,7 @@ class Cell1DSn(object):
     def resetOrdFlux(self):
         self.ordFlux = np.zeros((self.nG, 3, self.sNords))
 
-    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.5):
+    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.

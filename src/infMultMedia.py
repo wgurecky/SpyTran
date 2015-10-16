@@ -129,6 +129,7 @@ if __name__ == "__main__":
     modDict = {'u235': False, 'u238': False, 'zr90': False}
     resDict = {'h1': False, 'o16': False, 'zr90': False}
     ssPinCellMaterial = pinCellMaterial.selfSheild(modDict, resDict)
+    # ssPinCellMaterial = pinCellMaterial.selfSheild()
     # Solve k-eigenvalue problem
     kVec, fluxVec = solveCrit(ssPinCellMaterial, k0=1.1)
     # Print f-factors for u238 and u235
@@ -145,5 +146,8 @@ if __name__ == "__main__":
     # print("Relative U238 fission reaction rate: " + str(Ru238 / fRR))
     # print("Relative U235 fission reaction rate: " + str(Ru235 / fRR))
     # plot results
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     import plotters.fluxEplot as flxPlt
-    flxPlt.plotFluxE(fluxVec[-1][::-1])
+    flxPlt.plotFluxE(fluxVec[-1][::-1], label='Self Shield ON')
+    kVec, fluxVec = solveCrit(pinCellMaterial, k0=1.1)
+    flxPlt.plotFluxE(fluxVec[-1][::-1], label='Self Shield OFF')
