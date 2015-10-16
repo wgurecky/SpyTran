@@ -123,21 +123,27 @@ if __name__ == "__main__":
     # Load xs database
     import materials.materialMixxer as mx
     import utils.pinCellMatCalc as pcm
-    mx.genMaterialDict('./materials/hw2')
+    mx.genMaterialDict('./materials/newXS')
     # Create pin cell material
     pinCellMaterial = pcm.createPinCellMat()
+    modDict = {'u235': False, 'u238': False, 'zr90': False}
+    resDict = {'h1': False, 'o16': False, 'zr90': False}
+    ssPinCellMaterial = pinCellMaterial.selfSheild(modDict, resDict)
     # Solve k-eigenvalue problem
-    kVec, fluxVec = solveCrit(pinCellMaterial, k0=1.1)
+    kVec, fluxVec = solveCrit(ssPinCellMaterial, k0=1.1)
+    # Print f-factors for u238 and u235
+    print(ssPinCellMaterial.microDat['u235']['f'])
+    print(ssPinCellMaterial.microDat['u238']['f'])
     # Compute U235 and U238 reaction rates
-    numberDensity235 = pinCellMaterial.nDdict['u235']
-    numberDensity238 = pinCellMaterial.nDdict['u238']
-    u235 = mx.mixedMat({'u235': numberDensity235})
-    u238 = mx.mixedMat({'u238': numberDensity238})
-    Ru238 = np.sum(u238.macroProp['Nnufission'] * fluxVec[-1])
-    Ru235 = np.sum(u235.macroProp['Nnufission'] * fluxVec[-1])
-    fRR = np.sum([Ru238, Ru235])
-    print("Relative U238 fission reaction rate: " + str(Ru238 / fRR))
-    print("Relative U235 fission reaction rate: " + str(Ru235 / fRR))
+    # numberDensity235 = pinCellMaterial.nDdict['u235']
+    # numberDensity238 = pinCellMaterial.nDdict['u238']
+    # u235 = mx.mixedMat({'u235': numberDensity235})
+    # u238 = mx.mixedMat({'u238': numberDensity238})
+    # Ru238 = np.sum(u238.macroProp['Nnufission'] * fluxVec[-1])
+    # Ru235 = np.sum(u235.macroProp['Nnufission'] * fluxVec[-1])
+    # fRR = np.sum([Ru238, Ru235])
+    # print("Relative U238 fission reaction rate: " + str(Ru238 / fRR))
+    # print("Relative U235 fission reaction rate: " + str(Ru235 / fRR))
     # plot results
     import plotters.fluxEplot as flxPlt
     flxPlt.plotFluxE(fluxVec[-1][::-1])

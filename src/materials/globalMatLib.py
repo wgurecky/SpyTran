@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
 matLib = {}
+matLib['pu239'] = {'M': 239.,  # Atomic mass [kg/mol]
+                   'A': 94.0,         # Number of protons
+                   'zaid': '94239'}   # ZAID identifier
 matLib['u234'] = {'M': 234.0409456,  # Atomic mass [kg/mol]
                   'A': 92.0,         # Number of protons
                   'zaid': '92234'}   # ZAID identifier

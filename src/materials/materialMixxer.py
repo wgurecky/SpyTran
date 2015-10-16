@@ -162,8 +162,13 @@ class mixedMat(object):
         sum over all other isotopes, n.
         """
         for i, (material, data) in enumerate(self.microDat.iteritems()):
-            allOtherTotalMacroXs = self.macroProp['Ntotal'] - self.nDdict[material] * self.microDat[material]['total']
-            self.microDat[material]['sig_b'] = allOtherTotalMacroXs / self.nDdict[material]
+            otherMatsTotMacXs = 0
+            for j, (ssmat, data2) in enumerate(self.microDat.iteritems()):
+                if ssmat != material and self.microDat[ssmat]['modBool']:
+                    otherMatsTotMacXs += self.nDdict[ssmat] * self.microDat[ssmat]['total']
+                else:
+                    pass
+            self.microDat[material]['sig_b'] = otherMatsTotMacXs / self.nDdict[material]
         self._computeSelfSheildFactor()
 
     def _computeSelfSheildFactor(self, dilutionGrid=np.array([1e5, 1e3, 1e2, 1e1, 1e0, 1e-1])):
@@ -171,28 +176,46 @@ class mixedMat(object):
         Interpolates the self sheilding factor (ffactor) data for each isotope
         in the mixture based on the isotope's background cross section.
         """
-        dilutionGrid = np.append(dilutionGrid, 0.0)
+        dilutionGrid = np.append(dilutionGrid, 1e-5)
         for i, (material, data) in enumerate(self.microDat.iteritems()):
             self.microDat[material]['f'] = np.ones(len(self.microDat[material]['total']))
             try:
-                for g, gffactors in enumerate(self.microDat[material]['ffactor']):
-                    gffactors = np.append(gffactors, gffactors[-1])
-                    fn_sig_b = spi.interp1d(dilutionGrid, gffactors, kind='linear', fill_value=1.0, bounds_error=False)
-                    self.microDat[material]['f'][g] = fn_sig_b(self.microDat[material]['sig_b'][g])
+                if self.microDat[material]['resBool'] is True:
+                    for g, gffactors in enumerate(self.microDat[material]['ffactor']):
+                        gffactors = np.append(gffactors, gffactors[-1])
+                        # interpolate on log-transformed dilution grid
+                        fn_sig_b = spi.interp1d(np.log(dilutionGrid), gffactors, kind='linear', fill_value=1.0, bounds_error=False)
+                        self.microDat[material]['f'][g] = fn_sig_b(np.log(self.microDat[material]['sig_b'][g]))
+                else:
+                    print("Isotope: " + str(material) + " was not self shielded by user request.")
             except:
                 print("WARNING: No f-factor data availible in XS file. Setting f factor to 1.0 for iso: " + str(material))
 
-    def selfSheild(self):
+    def selfSheild(self, modBool={}, resAbsBool={}):
         """
         Multiply all micro cross sections by ss factor (ffactor) and
         recompute macroscopic cross sections.
-        Return a sheilded version of this class instance.  This is done to
+
+        Optionally specify moderator isotopes, resonant aborber isotopes, and
+        isotopes to ignore in the self sheilding step.
+
+        Default behaviour is to self sheild all isotopes & all isotopes contiribute
+        the the background cross section.
+
+        In the non-default case:  only moderator isotopes contibuted to the numerator
+        of the background cross section calculation.  Only those isotopes marked
+        as a resonant absorber will be self sheilded.  What a PAIN!
+
+        Return a sheilded version of this class instance. This is done to
         preserve the micro-cross section data of the original mixed material.
         Need to figure out how to "undo" self sheilding, for instance, if we
         want to modify a mixed material (which has already been self sheilded) and
         self sheild _again_.
         """
         ss_self = deepcopy(self)
+        for i, (material, data) in enumerate(ss_self.microDat.iteritems()):
+            ss_self.microDat[material]['modBool'] = modBool.pop(material, True)  # defaults to true
+            ss_self.microDat[material]['resBool'] = resAbsBool.pop(material, True)
         ss_self._computeBackgroundXsec()
         for i, (material, data) in enumerate(ss_self.microDat.iteritems()):
             ss_self.microDat[material]['total'] *= ss_self.microDat[material]['f']
@@ -200,7 +223,6 @@ class mixedMat(object):
             try:
                 ss_self.microDat[material]['nufission'] *= ss_self.microDat[material]['f']
             except:
-                # non-fissile isotope
                 pass
         ss_self._updateDB()
         return ss_self
