@@ -244,32 +244,6 @@ class Cell1DSn(object):
                         self.wN * (self.ordFlux[:, pos, :]), axis=1)
         return 0.5 * legsum
 
-    def sweepEnergy(self, oi):
-        pass
-
-    def solveEnergy(self, H, qin, oi):
-        """
-        Instead of performing down/up-scatter sweeps:
-        solve simple ngrp x ngrp Ax = b problem.
-
-        Multigroup space and direction independent transport operator:
-        H = Ntotal - Leg_skernel_in_direction_oi
-
-        source term:
-            For fission:
-                qin = (1/k) * F * flux + FixedSource
-                F = chi.T * nuFission
-
-        Solves for all group fluxes in one ordinate direction.
-
-        :Parameters:
-            - :param arg1: descrition
-            - :type arg1: type
-            - :return: return desctipt
-            - :rtype: return type
-        """
-        self.ordFlux[:, 0, oi] = np.linalg.solve(H, qin)
-
 
 class Sn1Dbc(object):
     def __init__(self, bc):
