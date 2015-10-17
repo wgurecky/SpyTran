@@ -64,6 +64,7 @@ class SubDomain(object):
         self.regions = []    # contains mesh regions
         self.sweepTree = []  # constains (region, cell) tuples
         self.depth = 0
+        self.keff = 1.0
 
     def addRegion(self, mesh1D):
         self.regions.append(mesh1D)
@@ -77,9 +78,10 @@ class SubDomain(object):
         minXPos, minXNodeID = self._findMinX()
         cellDistanceArray = self._computeDistance(minXPos, minXNodeID)  # distance of all cells to the "min X node"
         # sort distance array based on distances to min X cell
-        cellDistanceArray = np.sort(cellDistanceArray, axis=2)
+        cellDistanceArray = cellDistanceArray[cellDistanceArray[:, 2].argsort()]
+        # cellDistanceArray = np.sort(cellDistanceArray, axis=2)
         for w, cellD in enumerate(cellDistanceArray):
-            self.sweepTree.append((cellD[0], cellD[1]))
+            self.sweepTree.append((int(cellD[0]), int(cellD[1])))
 
     def getTotalCellsInDomain(self):
         totCells = 0
@@ -91,7 +93,7 @@ class SubDomain(object):
         distArray, w = np.zeros((self.getTotalCellsInDomain(), 3)), 0
         for j, region in enumerate(self.regions):
             for i, cell in enumerate(region.cells):
-                distArray[w] = np.array([j, i, abs(minXPos - cell.centroid)])
+                distArray[w, :] = np.array([j, i, abs(minXPos - cell.centroid)])
                 w += 1
         return distArray
 
@@ -140,6 +142,10 @@ class SubDomain(object):
         for j, region in enumerate(self.regions):
             for i, cell in enumerate(region.cells):
                 cell.sumOrdFlux()
+        if self.depth >= 1. and np.mod(self.depth, 5) == 0:
+            return self.computeResid()
+        else:
+            return 1.0
 
     def _sweepDir(self, f):
         """
@@ -169,8 +175,8 @@ class SubDomain(object):
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
-                cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.region[j].deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
-                    (1. + self.region[j].totalXs * self.region[j].deltaX / (2. * np.abs(cell.sNmu[o])))
+                cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.regions[j].deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
+                    (1. + self.regions[j].totalXs * self.regions[j].deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
                     cell.ordFlux[:, 2, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 2, o]
@@ -179,15 +185,16 @@ class SubDomain(object):
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
                 print("WARNING: Negative flux detected! Refine mesh in region #:" + str(j))
-                maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.region[j].totalXs)
+                maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.regions[j].totalXs)
                 print("Max Step size in 1D: " + str(maxStepSize))
                 # automatically gen refine factor: TODO: auto refine mesh
-                refineFactor = self.region[j].deltaX / maxStepSize
+                refineFactor = self.regions[j].deltaX / maxStepSize
                 raise Exception('coarse', refineFactor)
 
     def getOrdFlux(self):
         """
         getter for all groups and ordiante fluxes
+        TODO: interate over sweep tree rather than over dummy lists
         """
         totOrdFlux = []
         for j, region in enumerate(self.regions):
@@ -201,6 +208,7 @@ class SubDomain(object):
     def getScalarFlux(self):
         """
         getter for all scalar fluxes (angle integrated)
+        TODO: interate over sweep tree rather than over dummy lists
         """
         totScalarFlux = []
         for j, region in enumerate(self.regions):
