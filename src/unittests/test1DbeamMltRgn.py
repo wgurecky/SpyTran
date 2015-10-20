@@ -23,17 +23,17 @@ class test1Dbeam(unittest.TestCase):
         srcEnergy = np.array([0.0, 0, 1.0, 0, 0, 0, 0, 0, 0, 0])
         #
         # ## REGION 1 - GRAPHITE ###
-        width1, dX1 = 20.0, 1.0
+        width1, dX1 = 10.0, 1.0
         region1Mat = mx.mixedMat({'c12': 1.0})
         region1Mat.setDensity(2.26)
         region1mesh1D = sn.Mesh1Dsn([0, width1], dX1, region1Mat, sN=sNord)
         bcs1 = {0: {'fixN': (1, [srcStrength, srcEnergy])}}
         region1mesh1D.setBCs(bcs1)
         # ## REGION 2 - BORATED CARBON ###
-        width2, dX2 = 5.0, 0.1
-        region2Mat = mx.mixedMat({'c12': 0.999, 'b10': 0.001})
+        width2, dX2 = 5.0, 0.05
+        region2Mat = mx.mixedMat({'c12': 0.99, 'b10': 0.01})
         region2Mat.setDensity(2.2)
-        region2mesh1D = sn.Mesh1Dsn([width1 + dX1, width1 + dX1 + width2], dX2, region2Mat, sN=sNord)
+        region2mesh1D = sn.Mesh1Dsn([width1 + dX1 / 2. + dX2 / 2., width1 + dX1 / 2. + dX2 / 2. + width2], dX2, region2Mat, sN=sNord)
         bcs2 = {-1: {'vac': (2, 0)}}
         region2mesh1D.setBCs(bcs2)
         #
@@ -52,6 +52,11 @@ class test1Dbeam(unittest.TestCase):
         for g in range(len(srcEnergy)):
             pass
         flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
+        centroids = [cell.centroid for cell in domain.regions[0].cells]
+        centroids += [cell.centroid for cell in domain.regions[1].cells]
+        for g in range(len(srcEnergy)):
+            sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1))
+            # sfp.plot1DNeutronND(scalarFlux[:][:, g], centroids, g)
         # plot ord fluxes at leading edge
         ordFlux = domain.getOrdFlux()
         angles = np.arccos(domain.regions[0].cells[0].sNmu)

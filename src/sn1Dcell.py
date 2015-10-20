@@ -154,15 +154,7 @@ class Cell1DSn(object):
             sigma_s(x, Omega.Omega')*flux_n(r, omega)
             where n is the group
         returns vector of scattered ordinate fluxes
-        """
-        # remove diagonal entries from skernal.  We do not care about
-        # g == g' scatter (within grp scatter).
-        # skMultiplier = np.ones((self.nG, self.nG))
-        # skMultiplier = np.ones((self.nG, self.nG)) - np.eye(self.nG)
-        return self._evalLegSource(g, skernel)
 
-    def _evalLegSource(self, g, skernel):
-        """
         compute sum_l((2l+1) * P_l(mu) * sigma_l * flux_l)
         where l is the legendre order
         returns a vecotr of length = len(mu)  (number of ordinate dirs)
