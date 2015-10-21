@@ -20,9 +20,7 @@ class test1Dbeam(unittest.TestCase):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
         sNord = 8
-        #attnMat = mx.mixedMat({'c12': 0.99999, 'b10': 0.00001})
         attnMat = mx.mixedMat({'c12': 1.0})
-        #attnMat = mx.mixedMat({'h1': 2.0 / 3., 'o16': 1. / 3.})
         attnMat.setDensity(2.26)
         print(attnMat.nDdict)
         mesh1D = sn.Mesh1Dsn([0, width], dX, attnMat, sN=sNord)
@@ -34,7 +32,7 @@ class test1Dbeam(unittest.TestCase):
                -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         for si in range(180):
-            resid = mesh1D.sweepMesh(30)
+            resid = mesh1D.sweepMesh(1)
             if resid < 1e-5:
                 break
         scalarFlux = mesh1D.getScalarFlux()

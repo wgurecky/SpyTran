@@ -1,16 +1,12 @@
-# Cython version of the sn1D cell class
-# Only type variables where absolutely necissary, for bigest gainz
-# and best readability.
-#
-# Author: William Gurecky
-
 import numpy as np
-cimport numpy as np
+# import scattSource as scs
+import scattSrc as scs
 import scipy.special as spc
 import sys
+np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
-cdef class Cell1DSn(object):
+class Cell1DSn(object):
     """
     sN ordinates (sNords) dont have to be evenly distributed in mu-space.  can
     be specified to be biased to one particular direction, for instance, to
@@ -34,45 +30,20 @@ cdef class Cell1DSn(object):
                 8: np.array([0.9603, 0.7967, 0.5255, 0.1834, -0.1834, -0.5255, -0.7967, -0.9603])
                 }
 
-    cdef public float centroid
-    cdef public faceNormals
-    cdef public deltaX
-    cdef public sNords
-    cdef public wN
-    cdef public sNmu
-    cdef public iguess
-    cdef public ordFlux
-    cdef public totOrdFlux
-    cdef public qin
-    cdef public previousQin
-    cdef public S
-    cdef public maxLegOrder
-    cdef public legweights
-    cdef public nG
-    cdef public multiplying
-    cdef public boundaryCond
-
-    def __init__(self, float xpos, float deltaX, unsigned int nGroups=10,
-                  unsigned int legOrder=8, unsigned int sNords=2, **kwargs):
-        cdef np.ndarray[np.float64_t, ndim=1] faceNormals
-        cdef np.ndarray[np.float64_t, ndim=1] wN
-        cdef np.ndarray[np.float64_t, ndim=1] sNmu
-        cdef np.ndarray[np.float64_t, ndim=3] iguess
-        cdef np.ndarray[np.float64_t, ndim=3] ordFlux
-        cdef np.ndarray[np.float64_t, ndim=3] totOrdFlux
-        cdef np.ndarray[np.float64_t, ndim=3] qin
-        cdef np.ndarray[np.float64_t, ndim=3] previousQin
-        cdef np.ndarray[np.float64_t, ndim=3] S
-        self.centroid = xpos
+    def __init__(self, xpos, deltaX, nGroups=10, legOrder=8, sNords=2, **kwargs):
         self.faceNormals = np.array([-1, 1])
+        self.centroid = xpos
         self.deltaX = deltaX
+        # store cell centered, and cell edge fluxes.  Store as
+        # len(groups)x3xlen(sNords) matrix.
         self.sNords = sNords      # number of discrete dirs tracked
         self.wN = self.sNwDict[sNords]     # quadrature weights
         self.sNmu = self.sNmuDict[sNords]  # direction cosines
         self.maxLegOrder = legOrder  # remember to range(maxLegORder + 1)
         self.legweights = np.zeros(legOrder + 1)
         self.nG = nGroups         # number of energy groups
-        #cdef dict kwargs = {}
+        #
+        # ord flux vector: 0 is cell centered, 1 is left, 2 is right face
         iguess = kwargs.pop('iFlux', np.ones((nGroups, 3, self.sNords)))
         self.ordFlux = iguess
         self.totOrdFlux = iguess
@@ -117,8 +88,7 @@ cdef class Cell1DSn(object):
     def resetOrdFlux(self):
         self.ordFlux = np.zeros((self.nG, 3, self.sNords))
 
-    def sweepOrd(self, np.ndarray[np.float64_t, ndim=3] skernel, np.ndarray[np.float64_t, ndim=2] chiNuFission,
-                 float keff, int depth):
+    def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
         """
         Use the scattering source iteration to sweep through sN discrete balance
         equations, one for each sN ordinate direction.
@@ -143,16 +113,14 @@ cdef class Cell1DSn(object):
             - :return: return desctipt
             - :rtype: return type
         """
-        cdef float overRlx = 1.0
-        cdef unsigned int g
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (self._evalScatterSource(g, skernel) - self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
+                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) - self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = self._evalScatterSource(g, skernel)
+                    self.qin[g, 0, :] = scs.evalScatterSource(self, g, skernel)
                 self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
@@ -164,7 +132,7 @@ cdef class Cell1DSn(object):
             self.resetTotOrdFlux()
         return self.qin
 
-    cdef _computeFissionSource(self, g, chiNuFission, keff):
+    def _computeFissionSource(self, g, chiNuFission, keff):
         """
         Compute the withen group fission source.
         chiNuFission[g] is a row vector corresponding to all g'
@@ -182,7 +150,8 @@ cdef class Cell1DSn(object):
             print("Fission source requested for Non multiplying medium.  FATALITY")
             sys.exit()
 
-    cdef np.ndarray _evalScatterSource(self, unsigned int g, np.ndarray skernel):
+    #@profile
+    def _evalScatterSource(self, g, skernel):
         """
         computes within group scattering sources:
             sigma_s(x, Omega.Omega')*flux_n(r, omega)
@@ -194,24 +163,18 @@ cdef class Cell1DSn(object):
         returns a vecotr of length = len(mu)  (number of ordinate dirs)
         Amazingly, legendre.legval function provides exactly this capability
         """
-        cdef np.ndarray[np.float64_t, ndim=1] weights
-        cdef unsigned int l
-        cdef np.ndarray[np.float64_t, ndim=1] ggresult
-        cdef np.ndarray[np.float64_t, ndim=1] scresult
         def ggprimeInScatter(g, l):
             """
             Computes in-scattring into grp g reaction rate.
             """
-            ggresult = np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
-            return ggresult
+            return np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
         #
         weights = np.zeros(self.maxLegOrder + 1)
         for l in range(self.maxLegOrder + 1):
             weights[l] = (2 * l + 1) * ggprimeInScatter(g, l)
-        scresult = np.polynomial.legendre.legval(self.sNmu, weights)
-        return scresult
+        return np.polynomial.legendre.legval(self.sNmu, weights)
 
-    cdef _evalScalarFlux(self, g, pos=0):
+    def _evalScalarFlux(self, g, pos=0):
         """
         group scalar flux evaluator
         scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
@@ -223,7 +186,7 @@ cdef class Cell1DSn(object):
     def sumOrdFlux(self):
         self.totOrdFlux += self.ordFlux
 
-    cdef _evalTotScalarFlux(self, g, pos=0):
+    def _evalTotScalarFlux(self, g, pos=0):
         """
         group scalar flux evaluator
         scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
@@ -232,20 +195,20 @@ cdef class Cell1DSn(object):
         scalarFlux = np.sum(self.wN * self.totOrdFlux[g, pos, :])
         return 0.5 * scalarFlux
 
-    def getTotScalarFlux(self):
+    def getTotScalarFlux(self, pos=0):
         scalarFlux = []
         for g in range(self.nG):
-            scalarFlux.append(self._evalTotScalarFlux(g, 0))
+            scalarFlux.append(self._evalTotScalarFlux(g, pos))
         return np.array(scalarFlux)
 
-    def getFluxRatio(self):
+    def getFluxRatio(self, pos=0):
         partialFlux, totOrdFlux = 0, 0
         for g in range(self.nG):
             partialFlux += self._evalScalarFlux(g)
             totOrdFlux += self._evalTotScalarFlux(g)
         return partialFlux / totOrdFlux
 
-    cdef _evalLegFlux(self, g, l, pos=0):
+    def _evalLegFlux(self, g, l, pos=0):
         """
         group legendre group flux
         scalar_flux_lg = (1/2) * sum_n(w_n * P_l * flux_n)
@@ -258,7 +221,7 @@ cdef class Cell1DSn(object):
                         self.wN * self.ordFlux[g, pos, :])
         return 0.5 * legsum
 
-    cdef np.ndarray _evalVecLegFlux(self, unsigned int l, unsigned int pos=0):
+    def _evalVecLegFlux(self, l, pos=0):
         """
         Vectorized version of legendre moment of flux routine (must faster)
 
@@ -272,10 +235,9 @@ cdef class Cell1DSn(object):
         #leg = sp.special.legendre(l)
         #legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, self.legweights[:l+1]) *
         #                self.wN * (self.ordFlux[:, pos, :]), axis=1)
-        cdef np.ndarray[np.float64_t, ndim=1] legsum
-        legsum = 0.5 * np.sum(spc.eval_legendre(l, self.sNmu) *
-                              self.wN * (self.ordFlux[:, pos, :]), axis=1)
-        return legsum
+        legsum = np.sum(spc.eval_legendre(l, self.sNmu) *
+                        self.wN * (self.ordFlux[:, pos, :]), axis=1)
+        return 0.5 * legsum
 
 
 class Sn1Dbc(object):

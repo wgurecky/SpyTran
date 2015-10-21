@@ -148,6 +148,7 @@ class Cell1DSn(object):
             print("Fission source requested for Non multiplying medium.  FATALITY")
             sys.exit()
 
+    #@profile
     def _evalScatterSource(self, g, skernel):
         """
         computes within group scattering sources:

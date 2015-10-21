@@ -4,12 +4,24 @@
 #
 # Sweeps through energy, direction, and space on a 1D mesh
 #
+# To profile code:
+# ----------------
+# install line_profiler from pip:
+# sudo pip install line_profiler
+#
+# Enable the profile decorators if desired on functions
+# to profile:
+#   @profile
+#
+# run the main script with:
+#  kernprof -lv main.py
 #
 
 import numpy as np
 import materials.materialMixxer as mx
-import sn1Dcell as snc1d
-#import cyth.sn1Dcell as snc1d
+#import sn1Dcell as snc1d
+import cyth.sn1Dcell as snc1d
+#import cyth.cythSn1Dcell as snc1d
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
@@ -283,6 +295,7 @@ class Mesh1Dsn(object):
         for i, bc in boundConds.iteritems():
             self.cells[i].setBC(bc)
 
+    #@profile
     def sweepMesh(self, stopI=2):
         """
         Outer space iterations:
