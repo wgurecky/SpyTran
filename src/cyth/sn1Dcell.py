@@ -230,11 +230,6 @@ class Cell1DSn(object):
         where l is the legendre order
         and n is the ordinate iterate
         """
-        #self.legweights *= 0.0
-        #self.legweights[l] = 1.0
-        #leg = sp.special.legendre(l)
-        #legsum = np.sum(np.polynomial.legendre.legval(self.sNmu, self.legweights[:l+1]) *
-        #                self.wN * (self.ordFlux[:, pos, :]), axis=1)
         legsum = np.sum(spc.eval_legendre(l, self.sNmu) *
                         self.wN * (self.ordFlux[:, pos, :]), axis=1)
         return 0.5 * legsum
