@@ -9,6 +9,7 @@
 import numpy as np
 import materials.materialMixxer as mx
 import sn1Dcell as snc1d
+#import cyth.sn1Dcell as snc1d
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
