@@ -140,12 +140,12 @@ class SubDomain(object):
         converged, i = False, 0
         for j, region in enumerate(self.regions):
             sweepOrdRed = partial(sweepOrd, skernel=region.skernel, chiNuFission=region.chiNuFission,
-                                  keff=region.keff, depth=region.depth, overRlx=overRlx)
+                                  keff=region.keff, depth=self.depth, overRlx=1.0)
             map(sweepOrdRed, region.cells)
             # #### DEPRECIATED ####
             #for i, cell in enumerate(region.cells):
-            #    # compute the mth scattering source
-            #    cell.sweepOrd(region.skernel, region.chiNuFission, self.keff, self.depth)
+                # compute the mth scattering source
+            #    sweepOrd(cell, region.skernel, region.chiNuFission, self.keff, self.depth)
             # ### DEPRECIATED ####
         while not converged:
             # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))

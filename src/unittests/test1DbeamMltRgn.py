@@ -45,7 +45,7 @@ class test1Dbeam(unittest.TestCase):
         #
         # ## SWEEP DOMAIN ###
         for si in range(180):
-            resid = domain.sweepSubDomain(30)
+            resid = domain.sweepSubDomain(2)
             if resid < 1e-5:
                 break
         scalarFlux = domain.getScalarFlux()
