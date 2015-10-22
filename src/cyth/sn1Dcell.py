@@ -34,22 +34,26 @@ class Cell1DSn(object):
         self.faceNormals = np.array([-1, 1])
         self.centroid = xpos
         self.deltaX = deltaX
-        # store cell centered, and cell edge fluxes.  Store as
-        # len(groups)x3xlen(sNords) matrix.
-        self.sNords = sNords      # number of discrete dirs tracked
-        self.wN = self.sNwDict[sNords]     # quadrature weights
-        self.sNmu = self.sNmuDict[sNords]  # direction cosines
-        self.maxLegOrder = legOrder  # remember to range(maxLegORder + 1)
+        self.sNords = sNords                                    # number of discrete dirs tracked
+        self.wN = self.sNwDict[sNords]                          # quadrature weights
+        self.sNmu = self.sNmuDict[sNords]                       # direction cosines
+        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.legweights = np.zeros(legOrder + 1)
-        self.nG = nGroups         # number of energy groups
+        self.nG = nGroups                                       # number of energy groups
+        self.legArray = self._createLegArray(self.maxLegOrder)  # Stores leg polys
         #
-        # ord flux vector: 0 is cell centered, 1 is left, 2 is right face
+        # initial flux guess
         iguess = kwargs.pop('iFlux', np.ones((nGroups, 3, self.sNords)))
+        #
+        # Ord flux vector: 0 is cell centered, 1 is left, 2 is right face
         self.ordFlux = iguess
         self.totOrdFlux = iguess
+        #
+        # Scattering Source term(s)
         self.qin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
         self.previousQin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
-        # optional volumetric source (none by default, fission possible)
+        #
+        # optional volumetric source (none by default, fission or user-set possible)
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
         self.multiplying = False
         if type(self.S) is str:
@@ -116,7 +120,8 @@ class Cell1DSn(object):
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) - self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
+                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) -
+                                                   self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
@@ -138,11 +143,6 @@ class Cell1DSn(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            # multiplying medium source
-            # note fission source is isotripic so each ordinate fission source
-            # flux is equivillent
-            #return (1 / keff / 2.0) * np.abs(self.wN) * \
-            #    np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
             return (1 / keff / 2.0) * self.wN * \
                 np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
@@ -168,7 +168,6 @@ class Cell1DSn(object):
             Computes in-scattring into grp g reaction rate.
             """
             return np.sum(skernel[l, g, :] * self._evalVecLegFlux(l))
-        #
         weights = np.zeros(self.maxLegOrder + 1)
         for l in range(self.maxLegOrder + 1):
             weights[l] = (2 * l + 1) * ggprimeInScatter(g, l)
@@ -233,6 +232,12 @@ class Cell1DSn(object):
         legsum = np.sum(spc.eval_legendre(l, self.sNmu) *
                         self.wN * (self.ordFlux[:, pos, :]), axis=1)
         return 0.5 * legsum
+
+    def _createLegArray(self, lMax):
+        legArray = np.zeros((lMax + 1, len(self.sNmu)))
+        for l in range(lMax + 1):
+            legArray[l, :] = spc.eval_legendre(l, self.sNmu)
+        return legArray
 
 
 class Sn1Dbc(object):

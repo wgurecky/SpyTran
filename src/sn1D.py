@@ -19,10 +19,15 @@
 
 import numpy as np
 import materials.materialMixxer as mx
-#import sn1Dcell as snc1d
 import cyth.sn1Dcell as snc1d
-#import cyth.cythSn1Dcell as snc1d
+from functools import partial
 np.set_printoptions(linewidth=200)  # set print to screen opts
+try:
+    from cyth.scattSrc import sweepOrd
+except:
+    print("WARNING: Cythonized scattering source code does not function.")
+    print("WARNING: Fallback to pure python implementation.")
+    from cyth.scattSource import sweepOrd
 
 
 class Domain(object):
@@ -131,12 +136,17 @@ class SubDomain(object):
     def postSI(self):
         self.depth = 0
 
-    def sweepSubDomain(self, stopI=2):
+    def sweepSubDomain(self, stopI=2, overRlx=1.0):
         converged, i = False, 0
         for j, region in enumerate(self.regions):
-            for i, cell in enumerate(region.cells):
-                # compute the mth scattering source
-                cell.sweepOrd(region.skernel, region.chiNuFission, self.keff, self.depth)
+            sweepOrdRed = partial(sweepOrd, skernel=region.skernel, chiNuFission=region.chiNuFission,
+                                  keff=region.keff, depth=region.depth, overRlx=overRlx)
+            map(sweepOrdRed, region.cells)
+            # #### DEPRECIATED ####
+            #for i, cell in enumerate(region.cells):
+            #    # compute the mth scattering source
+            #    cell.sweepOrd(region.skernel, region.chiNuFission, self.keff, self.depth)
+            # ### DEPRECIATED ####
         while not converged:
             # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
@@ -309,9 +319,14 @@ class Mesh1Dsn(object):
         """
         # Sweep space
         converged, i = False, 0
-        for cell in self.cells:
+        sweepOrdRed = partial(sweepOrd, skernel=self.skernel, chiNuFission=self.chiNuFission,
+                              keff=self.keff, depth=self.depth, overRlx=1.0)
+        map(sweepOrdRed, self.cells)
+        # ### DEPRECIATED ####
+        #for cell in self.cells:
             # compute the mth scattering source
-            cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
+        #    cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
+        # ### DEPRECIATED ####
         while not converged:
             # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
