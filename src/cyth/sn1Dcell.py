@@ -23,11 +23,15 @@ class Cell1DSn(object):
     # STANDARD ORDINATES AND FLUX WEIGHTS FOR STD QUADRATURE SET
     sNwDict = {2: np.array([1.0, 1.0]),
                4: np.array([0.3478548451, 0.6521451549, 0.6521451549, 0.3478548451]),
-               8: np.array([0.1012, 0.2224, 0.3137, 0.3627, 0.3627, 0.3137, 0.2224, 0.1012])
+               8: np.array([0.1012, 0.2224, 0.3137, 0.3627, 0.3627, 0.3137, 0.2224, 0.1012]),
+               12: np.array([0.04717, 0.10693, 0.16007, 0.20316, 0.23349, 0.24914,
+                            0.24914, 0.23349, 0.20316, 0.16007, 0.10693, 0.04717])
                }
     sNmuDict = {2: np.array([0.5773502691, -0.5773502691]),
                 4: np.array([0.8611363115, 0.3399810435, -0.3399810435, -0.8611363115]),
-                8: np.array([0.9603, 0.7967, 0.5255, 0.1834, -0.1834, -0.5255, -0.7967, -0.9603])
+                8: np.array([0.9603, 0.7967, 0.5255, 0.1834, -0.1834, -0.5255, -0.7967, -0.9603]),
+                12: np.array([0.98156, 0.90411, 0.76990, 0.58731, 0.36783, 0.12523,
+                              -0.12523, -0.36783, -0.58731, -0.76990, -0.90411, -0.98156])
                 }
 
     def __init__(self, xpos, deltaX, nGroups=10, legOrder=8, sNords=2, **kwargs):
@@ -263,7 +267,10 @@ class Sn1Dbc(object):
             self.applyRefBC(cell, face)
         elif self.fixBC is not None:
             try:
-                self.applyFixedFluxBC(cell, self.fixBC[0], self.fixBC[1])
+                if depth == 0:
+                    self.applyFixedFluxBC(cell, self.fixBC[0], self.fixBC[1])
+                else:
+                    self.applyVacBC(cell, self.fixBC[0])
             except:
                 sys.exit("Incorrect format for fixed boundary condition.")
         elif self.fixNBC is not None:
@@ -331,7 +338,8 @@ class Sn1Dbc(object):
                 # multiply by cosines of ordinate angles
                 # scale by user set magnitude bc[0]
                 # factor of 2 is for reflection about x axis in 1D
-                cell.ordFlux[g, face, inD] = 2. * bc[0] * np.abs(cell.sNmu[inD]) * bc[1][g]
+                #cell.ordFlux[g, face, 0] = 2 * bc[0] * bc[1][g]
+                cell.ordFlux[g, face, inD] = 0.5 * bc[0] * np.abs(cell.sNmu[inD]) * bc[1][g] / cell.wN[inD]
 
     def applyWhiteBC():
         """
