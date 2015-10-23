@@ -37,7 +37,7 @@ class test1DsnCell(unittest.TestCase):
 
     def testMeshSweep(self):
         print("\n========= INITIATING MESH SWEEP TEST ==========")
-        mesh1D = sn.Mesh1Dsn([0, 10], 0.1, pinMaterial, sN=4)
+        mesh1D = sn.Mesh1Dsn([0, 10], 0.1, pinMaterial, sN=2)
         bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
         #
@@ -50,8 +50,8 @@ class test1DsnCell(unittest.TestCase):
     def testKeigenSweep(self):
         print("\n========= INITIATING K-EIGEN TEST ==========")
         width, dX = 1.0, 0.05
-        mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=4)
-        #bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}  # vac bc test
+        mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=8)
+        # bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}  # vac bc test
         bcs = {0: {'ref': (1, 0)}, -1: {'ref': (2, 0)}}   # ref bc test
         mesh1D.setBCs(bcs)
         #
@@ -62,9 +62,9 @@ class test1DsnCell(unittest.TestCase):
         sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, width + dX, dX))
         for pI in range(8):
             # Perform source iterations
-            nSourceIterations = 75
+            nSourceIterations = 70
             for si in range(nSourceIterations):
-                mesh1D.sweepMesh(7)
+                mesh1D.sweepMesh(10)
             fissionSrc.append(np.sum(mesh1D.fissionSrc()))
             knew = mesh1D.keff * (fissionSrc[-1] / fissionSrc[-2])
             print("Outter iteration: " + str(pI) + "  k-eff :" + str(knew))

@@ -27,7 +27,6 @@ def evalScatterSource(cell, g, skernel):
     weights = np.array([np.zeros(cell.maxLegOrder + 1)])
     for l in range(cell.maxLegOrder + 1):
         weights[0][l] = (2 * l + 1) * ggprimeInScatter(g, l)
-    #return np.polynomial.legendre.legval(cell.sNmu, weights)
     return np.sum(weights.T * cell.legArray, axis=0)
 
 
@@ -35,8 +34,6 @@ def evalVecLegFlux(cell, l):
     """
     Vectorized version of legendre moment of flux routine (must faster)
     """
-    #legsum = np.sum(spc.eval_legendre(l, cell.sNmu) *
-    #                cell.wN * (cell.ordFlux[:, 0, :]), axis=1)
     legsum = np.sum(cell.legArray[l, :] *
                     cell.wN * (cell.ordFlux[:, 0, :]), axis=1)
     return 0.5 * legsum

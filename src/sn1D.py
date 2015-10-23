@@ -275,6 +275,7 @@ class Mesh1Dsn(object):
         sN = kwargs.pop("sN", 2)
         nGrps = kwargs.pop("gN", 10)
         legO = kwargs.pop("lN", 8)
+        vSource = kwargs.pop("source", None)
         self.keff = 1.0
         self.deltaX = deltaX
         self.depth = 0  # scattering source iteration
@@ -293,7 +294,18 @@ class Mesh1Dsn(object):
         # initilize all cells in the mesh.
         self.cells = []
         for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
+            #src = self.sourceExapnder(pos, src, vSource)
             self.cells.append(snc1d.Cell1DSn(pos, deltaX, nGrps, legO, sN, source=src))
+
+    def sourceExapnder(self, x, src, vSource):
+        if src == 'fission':
+            return src
+        elif hasattr(vSource, '__call__'):
+            return vSource(x)
+        elif type(vSource) is float:
+            return vSource
+        elif vSource is None:
+            return None
 
     def setBCs(self, boundConds):
         """
@@ -375,6 +387,11 @@ class Mesh1Dsn(object):
         return np.array(totOrdFlux)
 
     def fissionSrc(self):
+        #fissionSrcVec = []
+        #for cell in self.cells:
+        #    fissionSrcVec.append(cell.fissionSrc[:, 0, :])
+        #fissionSrcVec = np.array(fissionSrcVec)
+        #return fissionSrcVec
         return np.dot(self.nuFission, self.getCellWidths() * self.getScalarFlux().T)
 
     def getScalarFlux(self):

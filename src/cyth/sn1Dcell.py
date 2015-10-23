@@ -147,7 +147,7 @@ class Cell1DSn(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            return (1 / keff / 2.0) * self.wN * \
+            return (1 / keff / 4.0 / (self.sNords * self.wN)) * \
                 np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
