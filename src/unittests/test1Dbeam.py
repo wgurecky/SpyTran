@@ -19,7 +19,7 @@ class test1Dbeam(unittest.TestCase):
     def testAtten(self):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
-        sNord = 10
+        sNord = 32
         attnMat = mx.mixedMat({'c12': 1.0})
         attnMat.setDensity(2.24)
         print(attnMat.nDdict)
@@ -27,7 +27,7 @@ class test1Dbeam(unittest.TestCase):
         # define fixed boundary cond
         srcStrength = 1.e6  # [n / cm**2-s]
         # energy distribution of source (all born at 0.1MeV
-        srcEnergy = np.array([0.0, 0, 1.0, 0, 0, 0, 0, 0, 0, 0])
+        srcEnergy = np.array([1.0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0])
         bcs = {0: {'fixN': (1, [srcStrength, srcEnergy])},
                -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)

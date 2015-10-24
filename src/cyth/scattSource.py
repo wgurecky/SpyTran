@@ -1,5 +1,17 @@
 import numpy as np
-import scipy.special as spc
+
+
+def evalScatterSourceImp(cell, g, skernel):
+    """
+    Impoved version of eval scatter source.  Performs same
+    operations with 0 _python_ for loops.  all in numpy!
+    """
+    weights = np.array([np.zeros(cell.maxLegOrder + 1)])
+    b = 0.5 * np.dot(cell.wN * cell.legArray[:, :], cell.ordFlux[:, 0, :].T)
+    ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
+    lw = np.arange(cell.maxLegOrder + 1)
+    weights[0][:] = (2 * lw + 1) * ggprimeInScatter
+    return np.sum(weights.T * cell.legArray, axis=0)
 
 
 def evalScatterSource(cell, g, skernel):
@@ -23,7 +35,6 @@ def evalScatterSource(cell, g, skernel):
         Computes in-scattring into grp g reaction rate.
         """
         return np.sum(skernel[l, g, :] * evalVecLegFlux(cell, l))
-    #
     weights = np.array([np.zeros(cell.maxLegOrder + 1)])
     for l in range(cell.maxLegOrder + 1):
         weights[0][l] = (2 * l + 1) * ggprimeInScatter(g, l)
@@ -67,11 +78,11 @@ def sweepOrd(cell, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
     if depth >= 1:
         if depth >= 2:
             for g in range(cell.nG):
-                cell.qin[g, 0, :] = overRlx * (evalScatterSource(cell, g, skernel) - cell.previousQin[g, 0, :]) + cell.previousQin[g, 0, :]
+                cell.qin[g, 0, :] = overRlx * (evalScatterSourceImp(cell, g, skernel) - cell.previousQin[g, 0, :]) + cell.previousQin[g, 0, :]
             cell.previousQin = cell.qin
         else:
             for g in range(cell.nG):
-                cell.qin[g, 0, :] = evalScatterSource(cell, g, skernel)
+                cell.qin[g, 0, :] = evalScatterSourceImp(cell, g, skernel)
             cell.previousQin = cell.qin
     elif cell.multiplying and depth == 0:
         for g in range(cell.nG):

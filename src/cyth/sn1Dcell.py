@@ -41,7 +41,7 @@ class Cell1DSn(object):
         self.centroid = xpos
         self.deltaX = deltaX
         self.sNords = sNords                                    # number of discrete dirs tracked
-        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
+        self.sNmu, self.wN = quadSet[0][::-1], quadSet[1]             # quadrature weights
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.legweights = np.zeros(legOrder + 1)
         self.nG = nGroups                                       # number of energy groups
@@ -129,12 +129,12 @@ class Cell1DSn(object):
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) -
+                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSourceImp(self, g, skernel) -
                                                    self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = scs.evalScatterSource(self, g, skernel)
+                    self.qin[g, 0, :] = scs.evalScatterSourceImp(self, g, skernel)
                 self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):

@@ -23,8 +23,8 @@ import cyth.sn1Dcell as snc1d
 from functools import partial
 np.set_printoptions(linewidth=200)  # set print to screen opts
 try:
-    from cyth.scattSrc import sweepOrd
-    #raise
+    #from cyth.scattSrc import sweepOrd
+    raise
 except:
     print("WARNING: Cythonized scattering source code does not function.")
     print("WARNING: Fallback to pure python implementation.")
