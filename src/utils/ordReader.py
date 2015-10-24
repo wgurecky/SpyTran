@@ -29,7 +29,7 @@ def gaussLegQuadSet(sNords):
         pnp1s[i] = spc.lpn(sNords + 1, mu)[0][-1]
     weights = -2. / ((sNords + 1) * pnp1s * pprimes)
     #
-    ordinateSet = np.array([mus, weights])
+    ordinateSet = np.array([mus[::-1], weights])
     return ordinateSet
 
 

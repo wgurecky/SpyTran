@@ -41,7 +41,7 @@ class Cell1DSn(object):
         self.centroid = xpos
         self.deltaX = deltaX
         self.sNords = sNords                                    # number of discrete dirs tracked
-        self.sNmu, self.wN = quadSet[0][::-1], quadSet[1]             # quadrature weights
+        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.legweights = np.zeros(legOrder + 1)
         self.nG = nGroups                                       # number of energy groups
