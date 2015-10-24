@@ -1,8 +1,9 @@
 import numpy as np
-# import scattSource as scs
-import scattSrc as scs
+import scattSource as scs
+# import scattSrc as scs
 import scipy.special as spc
 import sys
+from utils.ordReader import gaussLegQuadSet
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
@@ -35,12 +36,12 @@ class Cell1DSn(object):
                 }
 
     def __init__(self, xpos, deltaX, nGroups=10, legOrder=8, sNords=2, **kwargs):
+        quadSet = gaussLegQuadSet(sNords)
         self.faceNormals = np.array([-1, 1])
         self.centroid = xpos
         self.deltaX = deltaX
         self.sNords = sNords                                    # number of discrete dirs tracked
-        self.wN = self.sNwDict[sNords]                          # quadrature weights
-        self.sNmu = self.sNmuDict[sNords]                       # direction cosines
+        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.legweights = np.zeros(legOrder + 1)
         self.nG = nGroups                                       # number of energy groups
@@ -59,6 +60,11 @@ class Cell1DSn(object):
         #
         # optional volumetric source (none by default, fission or user-set possible)
         self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
+        #
+        # set bc, if any given
+        bc = kwargs.pop('bc', None)  # none denotes interior cell
+        if bc is not None:
+            self.setBC(bc)
         self.multiplying = False
         if type(self.S) is str:
             if self.S == 'fission':
@@ -67,10 +73,9 @@ class Cell1DSn(object):
                 self.S = np.zeros((nGroups, 3, self.sNords))
         elif self.S is None:
             self.S = np.zeros((nGroups, 3, self.sNords))
-        # set bc, if any given
-        bc = kwargs.pop('bc', None)  # none denotes interior cell
-        if bc is not None:
-            self.setBC(bc)
+        elif type(self.S) is np.ndarray:
+            if self.S.shape != (nGroups, 3, self.sNords):
+                sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, 3, sNords).")
 
     def setBC(self, bc):
         """

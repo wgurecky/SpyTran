@@ -19,9 +19,9 @@ class test1Dbeam(unittest.TestCase):
     def testAtten(self):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
-        sNord = 8
+        sNord = 10
         attnMat = mx.mixedMat({'c12': 1.0})
-        attnMat.setDensity(2.26)
+        attnMat.setDensity(2.24)
         print(attnMat.nDdict)
         mesh1D = sn.Mesh1Dsn([0, width], dX, attnMat, sN=sNord)
         # define fixed boundary cond
