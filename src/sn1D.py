@@ -260,6 +260,13 @@ class SubDomain(object):
                 deltaXs.append(cell.deltaX)
         return np.array(deltaXs)
 
+    def getCentroids(self):
+        centroids = []
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                centroids.append(cell.centroid)
+        return np.array(centroids)
+
 
 class Mesh1Dsn(object):
     """
@@ -275,7 +282,7 @@ class Mesh1Dsn(object):
         sN = kwargs.pop("sN", 2)
         nGrps = kwargs.pop("gN", 10)
         legO = kwargs.pop("lN", 8)
-        vSource = kwargs.pop("source", None)
+        #vSource = kwargs.pop("source", None)
         self.keff = 1.0
         self.deltaX = deltaX
         self.depth = 0  # scattering source iteration
@@ -290,7 +297,7 @@ class Mesh1Dsn(object):
         else:
             self.nuFission = None
             self.chiNuFission = None
-            src = None
+            src = kwargs.pop("source", None)
         # initilize all cells in the mesh.
         self.cells = []
         for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
@@ -420,6 +427,12 @@ class Mesh1Dsn(object):
         for cell in self.cells:
             deltaXs.append(cell.deltaX)
         return np.array(deltaXs)
+
+    def getCentroids(self):
+        centroids = []
+        for cell in self.cells:
+            centroids.append(cell.centroid)
+        return np.array(centroids)
 
     def setKeff(self, k):
         self.keff = k
