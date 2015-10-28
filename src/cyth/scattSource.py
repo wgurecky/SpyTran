@@ -1,15 +1,13 @@
 import numpy as np
 
 
-def evalScatterSourceImp(cell, g, skernel):
+def evalScatterSourceImp(cell, g, skernel, weights, lw):
     """
     Impoved version of eval scatter source.  Performs same
     operations with 0 _python_ for loops.  all in numpy!
     """
-    weights = np.array([np.zeros(cell.maxLegOrder + 1)])
     b = 0.5 * np.dot(cell.wN * cell.legArray[:, :], cell.ordFlux[:, 0, :].T)
     ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
-    lw = np.arange(cell.maxLegOrder + 1)
     weights[0][:] = (2 * lw + 1) * ggprimeInScatter
     return np.sum(weights.T * cell.legArray, axis=0)
 
@@ -75,14 +73,16 @@ def sweepOrd(cell, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
         - :return: return desctipt
         - :rtype: return type
     """
+    weights = np.array([np.zeros(cell.maxLegOrder + 1)])
+    lw = np.arange(cell.maxLegOrder + 1)
     if depth >= 1:
         if depth >= 2:
             for g in range(cell.nG):
-                cell.qin[g, 0, :] = overRlx * (evalScatterSourceImp(cell, g, skernel) - cell.previousQin[g, 0, :]) + cell.previousQin[g, 0, :]
+                cell.qin[g, 0, :] = overRlx * (evalScatterSourceImp(cell, g, skernel, weights, lw) - cell.previousQin[g, 0, :]) + cell.previousQin[g, 0, :]
             cell.previousQin = cell.qin
         else:
             for g in range(cell.nG):
-                cell.qin[g, 0, :] = evalScatterSourceImp(cell, g, skernel)
+                cell.qin[g, 0, :] = evalScatterSourceImp(cell, g, skernel, weights, lw)
             cell.previousQin = cell.qin
     elif cell.multiplying and depth == 0:
         for g in range(cell.nG):

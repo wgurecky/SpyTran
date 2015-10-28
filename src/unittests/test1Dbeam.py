@@ -19,7 +19,7 @@ class test1Dbeam(unittest.TestCase):
     def testAtten(self):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
-        sNord = 32
+        sNord = 8
         attnMat = mx.mixedMat({'c12': 1.0})
         attnMat.setDensity(2.24)
         print(attnMat.nDdict)

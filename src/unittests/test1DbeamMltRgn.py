@@ -16,23 +16,23 @@ class test1Dbeam(unittest.TestCase):
 
     def testAtten(self):
         print("\n========= INITIATING MULT REGION BEAM TEST ==========")
-        sNord = 4
+        sNord = 6
         # define fixed source boundary cond
         srcStrength = 1.e6  # [n / cm**2-s]
         # energy distribution of source (all born at 0.1MeV
-        srcEnergy = np.array([0.0, 0, 1.0, 0, 0, 0, 0, 0, 0, 0])
+        srcEnergy = np.array([1.0, 0, 0.0, 0, 0, 0, 0, 0, 0, 0])
         #
         # ## REGION 1 - GRAPHITE ###
-        width1, dX1 = 10.0, 1.0
+        width1, dX1 = 25.0, 1.0
         region1Mat = mx.mixedMat({'c12': 1.0})
-        region1Mat.setDensity(2.26)
+        region1Mat.setDensity(1.96)
         region1mesh1D = sn.Mesh1Dsn([0, width1], dX1, region1Mat, sN=sNord)
         bcs1 = {0: {'fixN': (1, [srcStrength, srcEnergy])}}
         region1mesh1D.setBCs(bcs1)
         # ## REGION 2 - BORATED CARBON ###
-        width2, dX2 = 5.0, 0.05
+        width2, dX2 = 25.0, 0.05
         region2Mat = mx.mixedMat({'c12': 0.99, 'b10': 0.01})
-        region2Mat.setDensity(2.2)
+        region2Mat.setDensity(1.9)
         region2mesh1D = sn.Mesh1Dsn([width1 + dX1 / 2. + dX2 / 2., width1 + dX1 / 2. + dX2 / 2. + width2], dX2, region2Mat, sN=sNord)
         bcs2 = {-1: {'vac': (2, 0)}}
         region2mesh1D.setBCs(bcs2)
@@ -45,7 +45,7 @@ class test1Dbeam(unittest.TestCase):
         #
         # ## SWEEP DOMAIN ###
         for si in range(180):
-            resid = domain.sweepSubDomain(2)
+            resid = domain.sweepSubDomain(1)
             if resid < 1e-5:
                 break
         scalarFlux = domain.getScalarFlux()
