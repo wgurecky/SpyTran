@@ -313,7 +313,7 @@ class Sn1Dbc(object):
         for iDir in inDirs:
             # get negative mu in iDir
             negDir = -1 * cell.sNmu[iDir]
-            outDir = np.where(negDir == cell.sNmu)
+            outDir = np.where(np.round(negDir, 6) == np.round(cell.sNmu, 6))
             cell.ordFlux[:, face, iDir] = cell.ordFlux[:, face, outDir[0][0]]
 
     def applyVacBC(self, cell, face):
