@@ -54,7 +54,7 @@ def testSlab():
     region1mesh1D = sn.Mesh1Dsn([0, width1], dx1, modMat, sN=sNord)
     src = np.zeros((10, 3, sNord))
     src[0, 0, :] = 0.5 * srcStrength * region1mesh1D.cells[0].wN
-    bcs1 = {1: {'vac': (1, 0)}}
+    bcs1 = {0: {'vac': (1, 0)}}
     region1mesh1D.setBCs(bcs1)
     print(region1mesh1D.getCentroids())
     region2mesh1D = sn.Mesh1Dsn([start2, end2], dx2, borMat, sN=sNord, source=src)
