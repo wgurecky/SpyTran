@@ -55,7 +55,8 @@ class Cell1DSn(object):
         self.totOrdFlux = iguess
         #
         # Scattering Source term(s)
-        self.qin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
+        self.qin = np.zeros((nGroups, 3, self.sNords))  # init scatter/fission source
+        #self.qin[0, 0, :] = 5e10
         self.previousQin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
         #
         # optional volumetric source (none by default, fission or user-set possible)
@@ -129,12 +130,12 @@ class Cell1DSn(object):
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSourceImp(self, g, skernel) -
+                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) -
                                                    self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = scs.evalScatterSourceImp(self, g, skernel)
+                    self.qin[g, 0, :] = scs.evalScatterSource(self, g, skernel)
                 self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
@@ -142,8 +143,9 @@ class Cell1DSn(object):
                 self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
             self.resetTotOrdFlux()
         elif not self.multiplying and depth == 0:
-            self.qin = self.S
-            self.resetTotOrdFlux()
+            #self.qin = self.S
+            #self.resetTotOrdFlux()
+            pass
         return self.qin
 
     def _computeFissionSource(self, g, chiNuFission, keff):

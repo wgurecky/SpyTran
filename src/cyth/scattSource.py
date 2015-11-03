@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 
 def evalScatterSourceImp(cell, g, skernel, weights, lw):
@@ -90,6 +91,6 @@ def sweepOrd(cell, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
             cell.qin[g, 0, :] = cell._computeFissionSource(g, chiNuFission, keff)
         cell.resetTotOrdFlux()
     elif not cell.multiplying and depth == 0:
-        cell.qin = cell.S
+        cell.qin = deepcopy(cell.S)
         cell.resetTotOrdFlux()
     return cell.qin

@@ -19,23 +19,21 @@ def testSlab():
     # ## MATERIAL DEFS ##
     modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
     borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
-    print(modMat.density)
-    print(borMat.density)
     # ## REGION WIDTHS
     width1, dx1 = 4, 0.1
-    width1 -= dx1
+    end1 = 0 + width1 - dx1
     #
     width2, dx2 = 2, 0.02
-    start2 = width1 + dx1 / 2 + dx2 / 2
+    start2 = end1 + dx1 / 2 + dx2 / 2
     end2 = start2 + width2 - dx2
     #
     width3, dx3 = 3, 0.1
     start3 = end2 + dx2 / 2 + dx3 / 2
-    end3 = start3 + width3 - 2 * dx3
+    end3 = start3 + width3 - dx3
     #
     width4, dx4 = 2, 0.02
-    #start4 = end3 + dx3 / 2 + dx4 / 2
-    start4 = end3 + dx3 / 1. + dx4 / 1. + 0.04
+    start4 = end3 + dx3 / 2 + dx4 / 2
+    #start4 = end3 + dx3 / 1. + dx4 / 1. + 0.04
     end4 = start4 + width4 - dx4
     #
     width5, dx5 = 3, 0.1
@@ -51,7 +49,7 @@ def testSlab():
     end7 = start7 + width7 - dx7
     #
     # ## REGIONS Defs ###
-    region1mesh1D = sn.Mesh1Dsn([0, width1], dx1, modMat, sN=sNord)
+    region1mesh1D = sn.Mesh1Dsn([0, end1], dx1, modMat, sN=sNord)
     src = np.zeros((10, 3, sNord))
     src[0, 0, :] = 0.5 * srcStrength * region1mesh1D.cells[0].wN
     bcs1 = {0: {'vac': (1, 0)}}
@@ -83,7 +81,7 @@ def testSlab():
     domain.buildSweepTree()
     #
     # ## SWEEP DOMAIN ###
-    for si in range(150):
+    for si in range(100):
         resid = domain.sweepSubDomain(1)
         if resid < 1e-5:
             break
@@ -91,7 +89,7 @@ def testSlab():
     flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
     centroids = domain.getCentroids()
     for g in range(ngrps):
-        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1))
+        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=False)
     # plot ord fluxes at center
     ordFlux = domain.getOrdFlux()
     angles = np.arccos(domain.regions[0].cells[0].sNmu)

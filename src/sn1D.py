@@ -199,6 +199,12 @@ class SubDomain(object):
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
+                if j == 0 and f == 2 and i == 3:
+                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                    pass
+                if j == 0 and f == 1 and i == 3:
+                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.regions[j].deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.regions[j].totalXs * self.regions[j].deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
@@ -300,7 +306,7 @@ class Mesh1Dsn(object):
             src = kwargs.pop("source", None)
         # initilize all cells in the mesh.
         self.cells = []
-        for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
+        for i, pos in enumerate(np.arange(bounds[0], bounds[1], deltaX)):
             #src = self.sourceExapnder(pos, src, vSource)
             self.cells.append(snc1d.Cell1DSn(pos, deltaX, nGrps, legO, sN, source=src))
 
@@ -462,7 +468,11 @@ class Mesh1Dsn(object):
             # current sweep dir. Filter ords by dot product
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
+            #print self.depth
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
+                if np.sum(cell.qin[0, 0, o]) >= 0.0 and self.depth >= 1:
+                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
