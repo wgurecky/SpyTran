@@ -92,6 +92,8 @@ def testSlab():
         mag = ordFlux[70][g, 0, :] / sum(ordFlux[70][g, 0, :])
         pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
     # plot absorption rate
+    absRate = domain.getAbsRate()
+    sfp.plot1DScalarFlux(absRate, centroids, label='absRate', legend=True, fnameOut='absRate', figNum=20)
     # Rate of leakage out of left and right faces
     leftGrpCurrent, rightGrpCurrent = 0, 0
     for g in range(ngrps):

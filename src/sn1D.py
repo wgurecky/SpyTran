@@ -232,6 +232,14 @@ class SubDomain(object):
                 totOrdFlux.append(cell.totOrdFlux)
         return np.array(totOrdFlux)
 
+    def getAbsRate(self):
+        absRate = []
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                absRate.append(np.sum(cell.getTotScalarFlux() *
+                                      (region.totalXs - np.sum(region.skernel[0, :, :], axis=0))))
+        return np.array(absRate)
+
     def fissionSrc(self):
         return np.dot(self.nuFission, self.getCellWidths() * self.getScalarFlux().T)
 
