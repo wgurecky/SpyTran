@@ -64,7 +64,7 @@ def checkConverge(k, flux):
         return deltK, l2Flux, False
 
 
-@profile
+#@profile
 def solveCrit(infMediaMat, k0=1.1, flux0=np.ones(10), **kwargs):
     """
     Takes a mixed material class instance and initial guesses for the flux and
