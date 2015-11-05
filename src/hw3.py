@@ -11,40 +11,62 @@ import plotters.scalarFluxPlot as sfp
 import plotters.plotOrdFlux as pof
 
 
-def testSlab():
+def genZoneWidths(absX, absW, totW=20):
+    """
+    takes absorber strip centroids, widths, and total problem width
+    and computes the with of each zone in the problem.
+    """
+    zoneBounds = [0]
+    for i, absCent in enumerate(absX):
+        # for each absorber centroid "absCent" ...
+        lastBound = zoneBounds[-1]
+        dxd2 = absW[i] / 2.
+        lwr = absCent - dxd2  # lower bound on abs region
+        uppr = absCent + dxd2  # lower bound on abs region
+        # establish region bounds
+        zoneBounds.append(lastBound + (lwr - lastBound))
+        lastBound = zoneBounds[-1]
+        zoneBounds.append(lastBound + (uppr - lastBound))
+    zoneBounds.append(totW)
+    zoneBounds = np.array(zoneBounds)
+    widths = zoneBounds[1:] - zoneBounds[:-1]
+    return widths
+
+
+def testSlab(widths=[4, 2, 3, 2, 3, 2, 4]):
     print("\n========= INITIATING MULT REGION TEST ==========")
     ngrps = 10
-    sNord = 8
+    sNord = 6
     srcStrength = 1.e10  # [n / cm**3-s]
     # ## MATERIAL DEFS ##
     modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
     borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
     # ## REGION WIDTHS
-    width1, dx1 = 4, 0.1
+    width1, dx1 = widths[0], 0.1
     end1 = 0 + width1 - dx1
     #
-    width2, dx2 = 2, 0.02
+    width2, dx2 = widths[1], 0.02
     start2 = end1 + dx1 / 2 + dx2 / 2
     end2 = start2 + width2 - dx2
     #
-    width3, dx3 = 3, 0.1
+    width3, dx3 = widths[2], 0.1
     start3 = end2 + dx2 / 2 + dx3 / 2
     end3 = start3 + width3 - dx3
     #
-    width4, dx4 = 2, 0.02
+    width4, dx4 = widths[3], 0.02
     start4 = end3 + dx3 / 2 + dx4 / 2
     #start4 = end3 + dx3 / 1. + dx4 / 1. + 0.04
     end4 = start4 + width4 - dx4
     #
-    width5, dx5 = 3, 0.1
+    width5, dx5 = widths[4], 0.1
     start5 = end4 + dx4 / 2 + dx5 / 2
     end5 = start5 + width5 - dx5
     #
-    width6, dx6 = 2, 0.02
+    width6, dx6 = widths[5], 0.02
     start6 = end5 + dx5 / 2 + dx6 / 2
     end6 = start6 + width6 - dx6
     #
-    width7, dx7 = 4, 0.1
+    width7, dx7 = widths[6], 0.1
     start7 = end6 + dx6 / 2 + dx7 / 2
     end7 = start7 + width7 - dx7
     #
@@ -74,21 +96,22 @@ def testSlab():
     domain.buildSweepTree()
     #
     # ## SWEEP DOMAIN ###
-    for si in range(100):
+    for si in range(120):
         resid = domain.sweepSubDomain(1)
-        if resid < 3.1e-4:
+        if resid < 3.15e-4:
             break
     scalarFlux = domain.getScalarFlux()
     flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
     centroids = domain.getCentroids()
     # plot all grp fluxes vs space
     for g in range(ngrps):
-        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=False)
+        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True, enableYlog=True)
     # plot ord fluxes at center of first absorber strip
     ordFlux = domain.getOrdFlux()
-    angles = np.arccos(domain.regions[1].cells[49].sNmu)
+    angles = np.arccos(domain.regions[0].cells[0].sNmu)
+    print("ord flux plots at " + str(centroids[92]) + "[cm]")
     for g in range(10):
-        mag = ordFlux[70][g, 0, :] / sum(ordFlux[70][g, 0, :])
+        mag = ordFlux[92][g, 0, :] / sum(ordFlux[92][g, 0, :])
         pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
     # plot absorption rate
     absRate = domain.getAbsRate()
@@ -178,19 +201,19 @@ def homogenized():
     # ## SWEEP DOMAIN ###
     for si in range(100):
         resid = domain.sweepSubDomain(1)
-        if resid < 3.1e-4:
+        if resid < 3.15e-4:
             break
     scalarFlux = domain.getScalarFlux()
     flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
     centroids = domain.getCentroids()
     # plot all grp fluxes vs space
     for g in range(ngrps):
-        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=False)
+        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True)
     # plot ord fluxes at center of first absorber strip
     ordFlux = domain.getOrdFlux()
     angles = np.arccos(domain.regions[0].cells[0].sNmu)
     for g in range(10):
-        mag = ordFlux[70][g, 0, :] / sum(ordFlux[70][g, 0, :])
+        mag = ordFlux[92][g, 0, :] / sum(ordFlux[92][g, 0, :])
         pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
     # plot absorption rate
     absRate = domain.getAbsRate()
@@ -215,5 +238,7 @@ def homogenized():
 
 
 if __name__ == "__main__":
-    testSlab()
+    widths = genZoneWidths([14, 16, 18], [2, 2, 2], 20)
+    print(widths)
+    testSlab(widths)
     #homogenized()

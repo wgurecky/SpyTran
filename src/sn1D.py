@@ -219,7 +219,7 @@ class SubDomain(object):
                 print("Max Step size in 1D: " + str(maxStepSize))
                 # automatically gen refine factor: TODO: auto refine mesh
                 refineFactor = self.regions[j].deltaX / maxStepSize
-                raise Exception('coarse', refineFactor)
+                #raise Exception('coarse', refineFactor)
 
     def getOrdFlux(self):
         """
@@ -494,4 +494,4 @@ class Mesh1Dsn(object):
                 maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.totalXs)
                 print("Max Step size in 1D: " + str(maxStepSize))
                 refineFactor = 2.  # TODO: compute refinement factor on the fly
-                raise Exception('coarse', refineFactor)
+                #raise Exception('coarse', refineFactor)
