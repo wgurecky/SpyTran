@@ -1,5 +1,6 @@
 import numpy as np
 import scattSource as scs
+from copy import deepcopy
 # import scattSrc as scs
 import scipy.special as spc
 import sys
@@ -55,7 +56,8 @@ class Cell1DSn(object):
         self.totOrdFlux = iguess
         #
         # Scattering Source term(s)
-        self.qin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
+        self.qin = np.zeros((nGroups, 3, self.sNords))  # init scatter/fission source
+        #self.qin[0, 0, :] = 5e10
         self.previousQin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
         #
         # optional volumetric source (none by default, fission or user-set possible)
@@ -129,12 +131,12 @@ class Cell1DSn(object):
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSourceImp(self, g, skernel) -
+                    self.qin[g, 0, :] = overRlx * (scs.evalScatterSource(self, g, skernel) -
                                                    self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = scs.evalScatterSourceImp(self, g, skernel)
+                    self.qin[g, 0, :] = scs.evalScatterSource(self, g, skernel)
                 self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
@@ -142,7 +144,7 @@ class Cell1DSn(object):
                 self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
             self.resetTotOrdFlux()
         elif not self.multiplying and depth == 0:
-            self.qin = self.S
+            self.qin = deepcopy(self.S)
             self.resetTotOrdFlux()
         return self.qin
 
@@ -152,8 +154,10 @@ class Cell1DSn(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            return (1 / keff / 4.0 / (self.sNords * self.wN)) * \
+            return (1 / keff / 8.0 / (1.0)) * \
                 np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
+            #return (1 / keff / 1.0) * \
+            #    np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
             print("Fission source requested for Non multiplying medium.  FATALITY")

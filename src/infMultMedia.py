@@ -64,7 +64,7 @@ def checkConverge(k, flux):
         return deltK, l2Flux, False
 
 
-@profile
+#@profile
 def solveCrit(infMediaMat, k0=1.1, flux0=np.ones(10), **kwargs):
     """
     Takes a mixed material class instance and initial guesses for the flux and
@@ -147,7 +147,6 @@ if __name__ == "__main__":
     # print("Relative U238 fission reaction rate: " + str(Ru238 / fRR))
     # print("Relative U235 fission reaction rate: " + str(Ru235 / fRR))
     # plot results
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     import plotters.fluxEplot as flxPlt
     flxPlt.plotFluxE(fluxVec[-1][::-1], label='Self Shield ON')
     kVec, fluxVec = solveCrit(pinCellMaterial, k0=1.1)

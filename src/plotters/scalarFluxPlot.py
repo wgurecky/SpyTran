@@ -2,14 +2,15 @@ import pylab as plt
 import numpy as np
 
 
-def plot1DScalarFlux(fluxVec, meshX, enableYlog=False, fnameOut='fluxS', figNum=1, label='grpFlux'):
+def plot1DScalarFlux(fluxVec, meshX, enableYlog=False, fnameOut='fluxS', figNum=1, label='grpFlux', legend=True):
     plt.figure(figNum)
     plt.plot(meshX, fluxVec, linewidth='4', label=label)
     plt.ylabel("Flux (Arbitrary Scaling)")
     plt.xlabel("Position [cm]")
     if enableYlog:
         plt.yscale('log')
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.savefig(fnameOut)
 
 

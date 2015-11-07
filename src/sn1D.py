@@ -149,7 +149,6 @@ class SubDomain(object):
             #    sweepOrd(cell, region.skernel, region.chiNuFission, self.keff, self.depth)
             # ### DEPRECIATED ####
         while not converged:
-            # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -208,12 +207,19 @@ class SubDomain(object):
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
-                print("WARNING: Negative flux detected! Refine mesh in region #:" + str(j))
+                #print("WARNING: Negative flux detected! Refine mesh in region #:" + str(j))
                 maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.regions[j].totalXs)
-                print("Max Step size in 1D: " + str(maxStepSize))
+                #print("Max Step size in 1D: " + str(maxStepSize))
                 # automatically gen refine factor: TODO: auto refine mesh
-                refineFactor = self.regions[j].deltaX / maxStepSize
-                raise Exception('coarse', refineFactor)
+                # refineFactor = self.regions[j].deltaX / maxStepSize
+                #raise Exception('coarse', refineFactor)
+
+    def getSource(self):
+        source = []
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                source.append(cell.qin)
+        return np.array(source)
 
     def getOrdFlux(self):
         """
@@ -226,16 +232,28 @@ class SubDomain(object):
                 totOrdFlux.append(cell.totOrdFlux)
         return np.array(totOrdFlux)
 
+    def getAbsRate(self):
+        absRate = []
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                absRate.append(np.sum(cell.getTotScalarFlux() *
+                                      (region.totalXs - np.sum(region.skernel[0, :, :], axis=0))))
+        return np.array(absRate)
+
     def fissionSrc(self):
         return np.dot(self.nuFission, self.getCellWidths() * self.getScalarFlux().T)
 
-    def getScalarFlux(self):
+    def getScalarFlux(self, targetRegions=None):
         """
         getter for all scalar fluxes (angle integrated)
         TODO: interate over sweep tree rather than over dummy lists
         """
+        if targetRegions:
+            maskedRegions = [self.regions[i] for i in targetRegions]
+        else:
+            maskedRegions = self.regions
         totScalarFlux = []
-        for j, region in enumerate(self.regions):
+        for j, region in enumerate(maskedRegions):
             for i, cell in enumerate(region.cells):
                 totScalarFlux.append(cell.getTotScalarFlux())
         totScalarFlux = np.array(totScalarFlux)
@@ -300,7 +318,7 @@ class Mesh1Dsn(object):
             src = kwargs.pop("source", None)
         # initilize all cells in the mesh.
         self.cells = []
-        for i, pos in enumerate(np.arange(bounds[0], bounds[1] + deltaX, deltaX)):
+        for i, pos in enumerate(np.arange(bounds[0], bounds[1], deltaX)):
             #src = self.sourceExapnder(pos, src, vSource)
             self.cells.append(snc1d.Cell1DSn(pos, deltaX, nGrps, legO, sN, source=src))
 
@@ -348,7 +366,6 @@ class Mesh1Dsn(object):
         #    cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
         # ### DEPRECIATED ####
         while not converged:
-            # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -459,7 +476,7 @@ class Mesh1Dsn(object):
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
             # Only sweep through ordinates that have a component in same direction as
-            # current sweep dir. Filter ords by dot product
+            # current sweep dir.
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
@@ -472,8 +489,8 @@ class Mesh1Dsn(object):
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
-                print("WARNING: Negative flux detected! Refine mesh.")
+                #print("WARNING: Negative flux detected! Refine mesh.")
                 maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.totalXs)
-                print("Max Step size in 1D: " + str(maxStepSize))
-                refineFactor = 2.  # TODO: compute refinement factor on the fly
-                raise Exception('coarse', refineFactor)
+                #print("Max Step size in 1D: " + str(maxStepSize))
+                # refineFactor = 2.  # TODO: compute refinement factor on the fly
+                #raise Exception('coarse', refineFactor)
