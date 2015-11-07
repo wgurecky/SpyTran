@@ -221,6 +221,13 @@ class SubDomain(object):
                 refineFactor = self.regions[j].deltaX / maxStepSize
                 #raise Exception('coarse', refineFactor)
 
+    def getSource(self):
+        source = []
+        for j, region in enumerate(self.regions):
+            for i, cell in enumerate(region.cells):
+                source.append(cell.qin)
+        return np.array(source)
+
     def getOrdFlux(self):
         """
         getter for all groups and ordiante fluxes
@@ -243,13 +250,17 @@ class SubDomain(object):
     def fissionSrc(self):
         return np.dot(self.nuFission, self.getCellWidths() * self.getScalarFlux().T)
 
-    def getScalarFlux(self):
+    def getScalarFlux(self, targetRegions=None):
         """
         getter for all scalar fluxes (angle integrated)
         TODO: interate over sweep tree rather than over dummy lists
         """
+        if targetRegions:
+            maskedRegions = [self.regions[i] for i in targetRegions]
+        else:
+            maskedRegions = self.regions
         totScalarFlux = []
-        for j, region in enumerate(self.regions):
+        for j, region in enumerate(maskedRegions):
             for i, cell in enumerate(region.cells):
                 totScalarFlux.append(cell.getTotScalarFlux())
         totScalarFlux = np.array(totScalarFlux)

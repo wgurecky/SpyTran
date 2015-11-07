@@ -9,6 +9,7 @@ mx.genMaterialDict('./materials/newXS')
 import plotters.fluxEplot as flxPlt
 import plotters.scalarFluxPlot as sfp
 import plotters.plotOrdFlux as pof
+import utils.hdf5dump as h5d
 
 
 def genZoneWidths(absX, absW, totW=20):
@@ -33,14 +34,11 @@ def genZoneWidths(absX, absW, totW=20):
     return widths
 
 
-def testSlab(widths=[4, 2, 3, 2, 3, 2, 4]):
+def testSlab(widths, modMat, borMat):
     print("\n========= INITIATING MULT REGION TEST ==========")
     ngrps = 10
-    sNord = 6
+    sNord = 8
     srcStrength = 1.e10  # [n / cm**3-s]
-    # ## MATERIAL DEFS ##
-    modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
-    borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
     # ## REGION WIDTHS
     width1, dx1 = widths[0], 0.1
     end1 = 0 + width1 - dx1
@@ -96,26 +94,27 @@ def testSlab(widths=[4, 2, 3, 2, 3, 2, 4]):
     domain.buildSweepTree()
     #
     # ## SWEEP DOMAIN ###
-    for si in range(120):
+    for si in range(280):
         resid = domain.sweepSubDomain(1)
         if resid < 3.15e-4:
             break
     scalarFlux = domain.getScalarFlux()
-    flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
+    #flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
     centroids = domain.getCentroids()
     # plot all grp fluxes vs space
     for g in range(ngrps):
-        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True, enableYlog=True)
+        #sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True, enableYlog=True)
+        pass
     # plot ord fluxes at center of first absorber strip
     ordFlux = domain.getOrdFlux()
     angles = np.arccos(domain.regions[0].cells[0].sNmu)
     print("ord flux plots at " + str(centroids[92]) + "[cm]")
     for g in range(10):
         mag = ordFlux[92][g, 0, :] / sum(ordFlux[92][g, 0, :])
-        pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
+        #pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
     # plot absorption rate
     absRate = domain.getAbsRate()
-    sfp.plot1DScalarFlux(absRate, centroids, label='absRate', legend=True, fnameOut='absRate', figNum=20)
+    #sfp.plot1DScalarFlux(absRate, centroids, label='absRate', legend=True, fnameOut='absRate', figNum=20)
     # Rate of leakage out of left and right faces
     leftGrpCurrent, rightGrpCurrent = 0, 0
     for g in range(ngrps):
@@ -133,16 +132,26 @@ def testSlab(widths=[4, 2, 3, 2, 3, 2, 4]):
     # non leakage prob
     nlp = 1 - (leftGrpCurrent + rightGrpCurrent) / totProd
     print("Non Leakage Probability= " + str(nlp))
+    # compute dimensionless parameter: pi1
+    totXS = domain.regions[1].totalXs
+    weightedXS = np.max(totXS)
+    #weightedXS = np.sum(totXS * domain.getScalarFlux([0, 6]), axis=1)
+    totFlux = np.sum(domain.getScalarFlux([0, 6]), axis=1)
+    #flux = np.sum(domain.getScalarFlux([1, 3, 5]))
+    #pi1 = 6.0 * np.average(weightedXS / totFlux)
+    pi1 = 6.0 * weightedXS
+    # dump ord fluxes and source to h5 file
+    #h5data = {'mesh': domain.getCentroids(), 'ordFluxes': domain.getOrdFlux(), 'source': domain.getSource()}
+    #h5d.writeToHdf5(h5data, '1st_scatter_iter.h5')
+    return nlp, pi1
 
 
-def homogenized():
+def homogenized(modMat, borMat):
     print("\n========= INITIATING HOMOGENIZED REGION TEST ==========")
     ngrps = 10
     sNord = 8
     srcStrength = 1.e10  # [n / cm**3-s]
     # ## MATERIAL DEFS ##
-    modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
-    borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
     homoMat = (6. / 20) * borMat + (14. / 20) * modMat
     # ## REGION WIDTHS
     width1, dx1 = 4, 0.1
@@ -199,25 +208,26 @@ def homogenized():
     domain.buildSweepTree()
     #
     # ## SWEEP DOMAIN ###
-    for si in range(100):
+    for si in range(280):
         resid = domain.sweepSubDomain(1)
         if resid < 3.15e-4:
             break
     scalarFlux = domain.getScalarFlux()
-    flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
+    #flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
     centroids = domain.getCentroids()
     # plot all grp fluxes vs space
     for g in range(ngrps):
-        sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True)
+        #sfp.plot1DScalarFlux(scalarFlux[:][:, g], centroids, label='Group ' + str(g + 1), legend=True)
+        pass
     # plot ord fluxes at center of first absorber strip
     ordFlux = domain.getOrdFlux()
     angles = np.arccos(domain.regions[0].cells[0].sNmu)
     for g in range(10):
         mag = ordFlux[92][g, 0, :] / sum(ordFlux[92][g, 0, :])
-        pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
+        #pof.compass(angles, mag, figName='hw3_polar_grp' + str(g + 1))
     # plot absorption rate
     absRate = domain.getAbsRate()
-    sfp.plot1DScalarFlux(absRate, centroids, label='absRate', legend=True, fnameOut='absRate', figNum=20)
+    #sfp.plot1DScalarFlux(absRate, centroids, label='absRate', legend=True, fnameOut='absRate', figNum=20)
     # Rate of leakage out of left and right faces
     leftGrpCurrent, rightGrpCurrent = 0, 0
     for g in range(ngrps):
@@ -235,10 +245,31 @@ def homogenized():
     # non leakage prob
     nlp = 1 - (leftGrpCurrent + rightGrpCurrent) / totProd
     print("Non Leakage Probability= " + str(nlp))
+    return nlp
 
 
 if __name__ == "__main__":
+    borMult = np.logspace(-7, -2, 10)
+    # ## MATERIAL DEFS ##
+    #modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
+    #borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
+    # ## ABSORBER REGION WIDTHS AND POSITIONS ##
     widths = genZoneWidths([14, 16, 18], [2, 2, 2], 20)
     print(widths)
-    testSlab(widths)
-    #homogenized()
+    # Explicit geom run
+    #testSlab(widths, modMat, borMat)
+    # Homogenized geom run
+    #homogenized(modMat, borMat)
+    results = []
+    for mult in borMult:
+        modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
+        borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': mult * 2.e21 / 1e24})
+        nlpE, pi1 = testSlab(widths, modMat, borMat)
+        nlpH = homogenized(modMat, borMat)
+        results.append([pi1, nlpH, nlpE, (nlpH - nlpE) / nlpE])
+        print(nlpE)
+        print(nlpH)
+        print((nlpH - nlpE) / nlpE)
+        print(pi1)
+        print("****")
+    print(np.array([results]))
