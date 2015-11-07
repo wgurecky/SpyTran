@@ -146,7 +146,7 @@ def testSlab(widths, modMat, borMat):
     return nlp, pi1
 
 
-def homogenized(modMat, borMat):
+def homogenized(widths, modMat, borMat):
     print("\n========= INITIATING HOMOGENIZED REGION TEST ==========")
     ngrps = 10
     sNord = 8
@@ -154,31 +154,31 @@ def homogenized(modMat, borMat):
     # ## MATERIAL DEFS ##
     homoMat = (6. / 20) * borMat + (14. / 20) * modMat
     # ## REGION WIDTHS
-    width1, dx1 = 4, 0.1
+    width1, dx1 = widths[0], 0.1
     end1 = 0 + width1 - dx1
     #
-    width2, dx2 = 2, 0.02
+    width2, dx2 = widths[1], 0.02
     start2 = end1 + dx1 / 2 + dx2 / 2
     end2 = start2 + width2 - dx2
     #
-    width3, dx3 = 3, 0.1
+    width3, dx3 = widths[2], 0.1
     start3 = end2 + dx2 / 2 + dx3 / 2
     end3 = start3 + width3 - dx3
     #
-    width4, dx4 = 2, 0.02
+    width4, dx4 = widths[3], 0.02
     start4 = end3 + dx3 / 2 + dx4 / 2
     #start4 = end3 + dx3 / 1. + dx4 / 1. + 0.04
     end4 = start4 + width4 - dx4
     #
-    width5, dx5 = 3, 0.1
+    width5, dx5 = widths[4], 0.1
     start5 = end4 + dx4 / 2 + dx5 / 2
     end5 = start5 + width5 - dx5
     #
-    width6, dx6 = 2, 0.02
+    width6, dx6 = widths[5], 0.02
     start6 = end5 + dx5 / 2 + dx6 / 2
     end6 = start6 + width6 - dx6
     #
-    width7, dx7 = 4, 0.1
+    width7, dx7 = widths[6], 0.1
     start7 = end6 + dx6 / 2 + dx7 / 2
     end7 = start7 + width7 - dx7
     #
@@ -249,23 +249,23 @@ def homogenized(modMat, borMat):
 
 
 if __name__ == "__main__":
-    borMult = np.logspace(-7, -2, 10)
+    borMult = np.logspace(-2.5, 0, 10)
     # ## MATERIAL DEFS ##
     #modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
     #borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
     # ## ABSORBER REGION WIDTHS AND POSITIONS ##
-    widths = genZoneWidths([14, 16, 18], [2, 2, 2], 20)
+    widths = genZoneWidths([5, 10, 15], [2, 2, 2], 20)
     print(widths)
     # Explicit geom run
     #testSlab(widths, modMat, borMat)
     # Homogenized geom run
-    #homogenized(modMat, borMat)
+    #homogenized(widths, modMat, borMat)
     results = []
     for mult in borMult:
         modMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
         borMat = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': mult * 2.e21 / 1e24})
         nlpE, pi1 = testSlab(widths, modMat, borMat)
-        nlpH = homogenized(modMat, borMat)
+        nlpH = homogenized(widths, modMat, borMat)
         results.append([pi1, nlpH, nlpE, (nlpH - nlpE) / nlpE])
         print(nlpE)
         print(nlpH)

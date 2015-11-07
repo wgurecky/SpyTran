@@ -1,5 +1,6 @@
 import numpy as np
 import scattSource as scs
+from copy import deepcopy
 # import scattSrc as scs
 import scipy.special as spc
 import sys
@@ -143,9 +144,8 @@ class Cell1DSn(object):
                 self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
             self.resetTotOrdFlux()
         elif not self.multiplying and depth == 0:
-            #self.qin = self.S
-            #self.resetTotOrdFlux()
-            pass
+            self.qin = deepcopy(self.S)
+            self.resetTotOrdFlux()
         return self.qin
 
     def _computeFissionSource(self, g, chiNuFission, keff):

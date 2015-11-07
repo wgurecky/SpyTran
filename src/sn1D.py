@@ -149,7 +149,6 @@ class SubDomain(object):
             #    sweepOrd(cell, region.skernel, region.chiNuFission, self.keff, self.depth)
             # ### DEPRECIATED ####
         while not converged:
-            # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -199,12 +198,6 @@ class SubDomain(object):
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
-                if j == 0 and f == 2 and i == 3:
-                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                    pass
-                if j == 0 and f == 1 and i == 3:
-                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.regions[j].deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.regions[j].totalXs * self.regions[j].deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
@@ -214,11 +207,11 @@ class SubDomain(object):
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
-                print("WARNING: Negative flux detected! Refine mesh in region #:" + str(j))
+                #print("WARNING: Negative flux detected! Refine mesh in region #:" + str(j))
                 maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.regions[j].totalXs)
-                print("Max Step size in 1D: " + str(maxStepSize))
+                #print("Max Step size in 1D: " + str(maxStepSize))
                 # automatically gen refine factor: TODO: auto refine mesh
-                refineFactor = self.regions[j].deltaX / maxStepSize
+                # refineFactor = self.regions[j].deltaX / maxStepSize
                 #raise Exception('coarse', refineFactor)
 
     def getSource(self):
@@ -373,7 +366,6 @@ class Mesh1Dsn(object):
         #    cell.sweepOrd(self.skernel, self.chiNuFission, self.keff, self.depth)
         # ### DEPRECIATED ####
         while not converged:
-            # print("Source iteration: " + str(self.depth) + "  Space-angle sweep: " + str(i))
             self._sweepDir(1)
             self._sweepDir(2)
             i += 1
@@ -484,14 +476,10 @@ class Mesh1Dsn(object):
                 # Interior cell
                 cell.ordFlux[:, f, :] = lastCellFaceVal[:, :]
             # Only sweep through ordinates that have a component in same direction as
-            # current sweep dir. Filter ords by dot product
+            # current sweep dir.
             dotDir = cell.sNmu * cell.faceNormals[f - 1]
             ordsInSweepDir = np.where(dotDir < 0.)
-            #print self.depth
             for o in np.arange(cell.sNords)[ordsInSweepDir]:
-                if np.sum(cell.qin[0, 0, o]) >= 0.0 and self.depth >= 1:
-                    #import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                    pass
                 cell.ordFlux[:, 0, o] = (cell.ordFlux[:, f, o] + self.deltaX * cell.qin[:, 0, o] / (2. * np.abs(cell.sNmu[o]))) / \
                     (1. + self.totalXs * self.deltaX / (2. * np.abs(cell.sNmu[o])))
                 if f == 1:
@@ -501,8 +489,8 @@ class Mesh1Dsn(object):
                     cell.ordFlux[:, 1, o] = 2. * cell.ordFlux[:, 0, o] - cell.ordFlux[:, f, o]
                     lastCellFaceVal[:, o] = cell.ordFlux[:, 1, o]
             if np.any(cell.ordFlux[:, :, :] < 0.0):
-                print("WARNING: Negative flux detected! Refine mesh.")
+                #print("WARNING: Negative flux detected! Refine mesh.")
                 maxStepSize = 2. * np.min(np.abs(cell.sNmu)) * min(1. / self.totalXs)
-                print("Max Step size in 1D: " + str(maxStepSize))
-                refineFactor = 2.  # TODO: compute refinement factor on the fly
+                #print("Max Step size in 1D: " + str(maxStepSize))
+                # refineFactor = 2.  # TODO: compute refinement factor on the fly
                 #raise Exception('coarse', refineFactor)
