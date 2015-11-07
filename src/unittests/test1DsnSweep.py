@@ -51,8 +51,8 @@ class test1DsnCell(unittest.TestCase):
         print("\n========= INITIATING K-EIGEN TEST ==========")
         width, dX = 4.0, 0.05
         mesh1D = sn.Mesh1Dsn([0, width], dX, pinMaterial, sN=8)
-        bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}  # vac bc test
-        #bcs = {0: {'ref': (1, 0)}, -1: {'ref': (2, 0)}}   # ref bc test
+        #bcs = {0: {'vac': (1, 0)}, -1: {'vac': (2, 0)}}  # vac bc test
+        bcs = {0: {'ref': (1, 0)}, -1: {'ref': (2, 0)}}   # ref bc test
         mesh1D.setBCs(bcs)
         #
         fissionSrc = []
@@ -60,9 +60,9 @@ class test1DsnCell(unittest.TestCase):
         fissionSrc.append(np.sum(mesh1D.fissionSrc()))  # todo mult by width
         scalarFlux = mesh1D.getScalarFlux()
         sfp.plot1DScalarFlux(scalarFlux[:][:, 1], np.arange(0, width, dX))
-        for pI in range(1):
+        for pI in range(8):
             # Perform source iterations
-            nSourceIterations = 70
+            nSourceIterations = 80
             for si in range(nSourceIterations):
                 mesh1D.sweepMesh(10)
             fissionSrc.append(np.sum(mesh1D.fissionSrc()))

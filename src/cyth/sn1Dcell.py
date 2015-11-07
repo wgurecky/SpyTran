@@ -154,8 +154,10 @@ class Cell1DSn(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            return (1 / keff / 4.0 / (self.sNords * self.wN)) * \
+            return (1 / keff / 8.0 / (1.0)) * \
                 np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
+            #return (1 / keff / 1.0) * \
+            #    np.sum(chiNuFission[g] * self._evalTotScalarFlux(g))
         else:
             # need fixed source from user input
             print("Fission source requested for Non multiplying medium.  FATALITY")

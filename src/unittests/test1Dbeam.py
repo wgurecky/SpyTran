@@ -19,7 +19,7 @@ class test1Dbeam(unittest.TestCase):
     def testAtten(self):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
-        sNord = 8
+        sNord = 32
         attnMat = mx.mixedMat({'c12': 1.0})
         attnMat.setDensity(2.24)
         print(attnMat.nDdict)
@@ -37,8 +37,8 @@ class test1Dbeam(unittest.TestCase):
                 break
         scalarFlux = mesh1D.getScalarFlux()
         for g in range(len(srcEnergy)):
-            sfp.plot1DScalarFlux(scalarFlux[:][:, g], np.arange(0, width + dX, dX), label='Group ' + str(g + 1))
-            sfp.plot1DNeutronND(scalarFlux[:][:, g], np.arange(0, width + dX, dX), g)
+            sfp.plot1DScalarFlux(scalarFlux[:][:, g], np.arange(0, width, dX), label='Group ' + str(g + 1))
+            sfp.plot1DNeutronND(scalarFlux[:][:, g], np.arange(0, width, dX), g)
         flxPlt.plotFluxE(scalarFlux[-1][::-1])  # flux vs E at left edge
         # plot ord fluxes at leading edge
         ordFlux = mesh1D.getOrdFlux()

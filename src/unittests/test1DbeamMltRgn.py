@@ -16,7 +16,7 @@ class test1Dbeam(unittest.TestCase):
 
     def testAtten(self):
         print("\n========= INITIATING MULT REGION BEAM TEST ==========")
-        sNord = 6
+        sNord = 18
         # define fixed source boundary cond
         srcStrength = 1.e6  # [n / cm**2-s]
         # energy distribution of source (all born at 0.1MeV
