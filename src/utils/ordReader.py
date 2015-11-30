@@ -5,6 +5,13 @@ import numpy as np
 import scipy.special as spc
 
 
+def createLegArray(sNmu, lMax):
+    legArray = np.zeros((lMax + 1, len(sNmu)))
+    for l in range(lMax + 1):
+        legArray[l, :] = spc.eval_legendre(l, sNmu)
+    return legArray
+
+
 def readOrdFile(inFile, sNords):
     ords = np.fromtxt(inFile)
     if len(ords) == sNords:

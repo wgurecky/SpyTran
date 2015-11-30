@@ -28,6 +28,9 @@ class gmshMesh(object):
         self.dim = dim
         subprocess.call(['gmsh', str(self.geoFile), '-' + str(dim), '-o', self.inpFileName, '-v', '0'])
         self.inpFL = fileToList(self.inpFileName)
+        self.parseINP()
+        self.regionNodes()
+        self.markRegionBCs()
 
     def parseGEO(self):
         self.regionInfo = {}
@@ -78,6 +81,7 @@ class gmshMesh(object):
         """
         ROUND NODES COORDINATES and create self.nodes array
         """
+        nodes = []
         nodeDefLineStart = flaggedDict['Node'][0]['i'] + 1
         nodeDefLineEnd = flaggedDict['Elm'][0]['i']
         for j, line in enumerate(self.inpFL[nodeDefLineStart: nodeDefLineEnd]):
@@ -87,24 +91,25 @@ class gmshMesh(object):
                 words[k + 1] = '%.10e' % round(float(word.strip(',')), 10)
                 if (k + 1) < 3:
                     words[k + 1] += ','
-            self.nodes.append([float(x.strip(', ')) for x in words])
-        self.nodes = np.array(self.nodes)
+            nodes.append([float(x.strip(', ')) for x in words])
+        self.nodes = np.array(nodes)
 
     def createElements(self, flaggedDict):
         """
         The *Element section contains element IDs.  Each element ID
         contains node IDs which mark the verticies of the element.
         """
+        elements = []
         elementDefLineStart = flaggedDict['Elm'][0]['i'] + 1
         elementDefLineEnd = flaggedDict['ELSET'][0]['i']
         for j, line in enumerate(self.inpFL[elementDefLineStart: elementDefLineEnd]):
             words = line.split()
-            words[0] = str(j + 1) + ', '
+            #words[0] = str(j + 1) + ', '
             try:
-                self.elements.append([int(x.strip(', ')) for x in words])
+                elements.append([int(x.strip(', ')) for x in words])
             except:
                 pass
-        self.elements = np.array(self.elements)
+        self.elements = np.array(elements)
 
     def createRegions(self, flaggedDict):
         """
@@ -117,16 +122,17 @@ class gmshMesh(object):
             try:
                 elsetDefEnd = flaggedDict['ELSET'][k + 1]['i']
             except:
-                elsetDefEnd = -1
+                elsetDefEnd = None
             # perform region type and material assignment for each region
-            regionStr = re.match('[^ \d]+(\d+)', self.inpFL(elsetDefStart))
+            regionStr = re.match('[^ \d]+(\d+)', self.inpFL[elsetDefStart])
             regionID = int(regionStr.group(1))
             elements = []
             for j, line in enumerate(self.inpFL[elsetDefStart + 1: elsetDefEnd]):
                 words = line.split()
-                words[0] = str(j + 1) + ', '
+                #words[0] = str(j + 1) + ', '
                 elements.append([int(x.strip(', ')) for x in words])
-            self.regions[regionID]['elementIDs'] = np.array(elements)
+            self.regions[regionID] = {}
+            self.regions[regionID]['elementIDs'] = np.array(elements).flatten()
             self.regions[regionID]['type'] = self.regionInfo[regionID]['type']
             if self.regionInfo[regionID]['type'] == 'interior':
                 self.regions[regionID]['material'] = self.regionInfo[regionID]['info']
@@ -140,7 +146,7 @@ class gmshMesh(object):
             else:
                 regionElementIndexs = np.unique([np.where(self.elements[:, 0] == i) for i in region['elementIDs']])
                 self.regions[regionID]['elements'] = np.array([self.elements[row] for row in regionElementIndexs])
-                self.regions[regionID]['nodeIDs'] = self.regions[regionID]['elements'][:, 1:]
+                self.regions[regionID]['nodeIDs'] = np.unique(self.regions[regionID]['elements'][:, 1:].flatten())
 
     def markRegionBCs(self):
         """
@@ -157,7 +163,7 @@ class gmshMesh(object):
             if region['type'] == 'interior':
                 self.regions[regionID]['bcNodes'] = {}
                 for boundaryRegion in boundaryRegions:
-                    boundingNodes = np.intersect1d(region['nodeIDs'].flatten(), boundaryRegion[1].flatten())
+                    boundingNodes = np.intersect1d(region['nodeIDs'], boundaryRegion[1])
                     bcType = boundaryRegion[0]
                     if boundingNodes.any():
                         self.regions[regionID]['bcNodes'][bcType] = boundingNodes
@@ -169,7 +175,12 @@ class gmsh1DMesh(gmshMesh):
     def __init__(self, **kwargs):
         super(gmsh1DMesh, self).__init__(**kwargs)
         self.runGMSH(1)
-        self.parseINP()
+        #self.mesh = defaultdict(dict)
+        #for regionID, region in self.regions.iteritems():
+        #    if region['type'] == 'interior':
+        #        for elementID, nodeIDs in zip(region['elements'][:, 0], region['elements'][:, 1:]):
+        #            for nodeID in nodeIDs:
+        #                self.mesh[regionID][elementID][nodeID] = nodeInfo
 
     def gmsh1Dparse(self):
         """

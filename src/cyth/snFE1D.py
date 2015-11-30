@@ -2,24 +2,127 @@ import numpy as np
 #import scattSource as scs
 from copy import deepcopy
 # import scattSrc as scs
-# import scipy.special as spc
 import scipy.sparse as sps
 import sys
 from utils.ordReader import gaussLegQuadSet
+from utils.ordReader import createLegArray
+from utils.gmshPreproc import gmsh1DMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
-#class FE1Dbc(object):
-#    def __init__(self, **kwargs):
-#        pass
+class SnFe1D(object):
+    """
+    High level solver tasks reside here. e.g:
+        - Make transport operator (matirx A)
+        - Make RHS vecotr (vector b)
+        - solve flux (solve Ax=b)
+        - Update scattering souce in each element
+    Methods can be called when necissary by a controller script.
+    """
+    def __init__(self, geoFile, materialDict, nGroups=10, legOrder=8, sNords=2):
+        """
+        Matierial dict in:
+            {'material_str': material_class_instance, ...}
+        format
+        """
+        quadSet = gaussLegQuadSet(sNords)                       # quadrature set
+        self.sNords = sNords                                    # number of discrete dirs tracked
+        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
+        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
+        self.nG = nGroups                                       # number of energy groups
+        self.legArray = createLegArray(self.snMu, self.maxLegOrder)  # Stores leg polys
+        #
+        gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
+        self.superMesh = superMesh(gmshMesh, materialDict)    # build the mesh
+        self.depth = 0  # scattering source iteration depth
+        self.constructA()
 
-class FE1DSnMesh(object):
-    def __init__():
+    def scatterSource(self):
+        """
+        Perform scattering souce iteration for all nodes in the mesh:
+        for region in regions:
+            for elements in region:
+                element.scatter()
+        """
+        self.superMesh.scatter(self.depth, self.keff)
+        self.depth += 1
+
+    def constructA(self):
+        """
+        Construct transport operator A:
+        for region in regions:
+            for elements in region:
+                stamp elmA into sysA
+        """
+        self.superMesh.constructA()
+
+    def solveFlux(self):
+        """
+        Solve Ax=b.
+        """
         pass
 
-    def initFlux(self):
-        # the RHS and flux scalar field are dense
+    def writeFlux(self):
+        """
+        Write solution state to hdf5 file.
+            - keff (if applicable)
+            - mesh
+                - elements (nodes in element)
+                - node positions
+            - flux field
+        """
         pass
+
+
+class superMesh(object):
+    """
+    Contains all region meshes.
+    Contains mappings betwen array/matrix field representation and element class
+    representation.
+    """
+    def __init__(self, gmshMesh, materialDict):
+        for regionID, region in gmshMesh.regions.iteritems():
+            if region['type'] == 'interior':
+                self.regions[regionID] = regionMesh(region, materialDict[region['material']])
+
+    def scatter(self, depth, keff):
+        for regionID, region in self.regions.iteritems():
+            for elementID, element in region.elements.iteritems():
+                element.sweepOrd(region.skernel, region.chiNuFission, keff, depth)
+
+
+class regionMesh(object):
+    def __init__(self, gmshRegion, material, **kwargs):
+        """
+        Each region requires a material specification.
+
+        Each region requires a node layout specification.
+        A 1D mesh has the following structure:
+        [[elementID1, x1, x2],
+         [elementID2, x2, x3]
+         ...
+        ]
+        """
+        self.totalXs = material.macroProp['Ntotal']
+        self.skernel = material.macroProp['Nskernel']
+        if 'chi' in material.macroProp.keys():
+            self.nuFission = material.macroProp['Nnufission']
+            self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
+                                       np.array([material.macroProp['Nnufission']]))
+            src = 'fission'
+        else:
+            self.nuFission = None
+            self.chiNuFission = None
+            src = kwargs.pop("source", None)
+        # Build elements in the region mesh
+        self.buildElements(gmshRegion, kwargs)
+
+    def buildElements(self, gmshRegion, kwargs):
+        self.elements = {}
+        for elementID in gmshRegion['elements']:
+            nodeIDs = elementID[1:]
+            nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+            self.elements[elementID[0]] = FE1DSnElement((nodeIDs, nodePos), kwargs)
 
     def constructA(self, g):
         """
@@ -83,45 +186,42 @@ class FE1DSnElement(object):
     the souce term at the finite element centroid.
     """
 
-    def __init__(self, nodes, nGroups=10, legOrder=8, sNords=2, **kwargs):
+    def __init__(self, nodes, **kwargs):
         """
         takes ([nodeIDs], [nodePos]) tuple.
         Optionally specify number of groups, leg order and number of ordinates
         """
         #
         # Basic data needed for scattering source calcs
-        quadSet = gaussLegQuadSet(sNords)                       # quadrature set
-        self.sNords = sNords                                    # number of discrete dirs tracked
-        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
-        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
-        self.nG = nGroups                                       # number of energy groups
-        self.legArray = self._createLegArray(self.maxLegOrder)  # Stores leg polys
+        self.sNords = kwargs.pop("sNords", 2)                                    # number of discrete dirs tracked
+        quadSet = kwargs.pop("quadSet", gaussLegQuadSet(self.sNords))            # quadrature set
+        self.sNmu, self.wN = quadSet[0], quadSet[1]                              # quadrature weights
+        self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
+        self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
+        self.legArray = kwargs.pop("legP", createLegArray(self.sNmu, self.maxLegOrder))     # Stores leg polys
         #
         # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
-        self.deltaX = self._computeDeltaX()  # Compute deltaX
-        #
-        # Store material properties
-        self.totalXs = kwargs.pop("totalXs", np.ones(self.nG))
+        self._computeDeltaX()  # Compute deltaX
         #
         # Flux and source storage
         # initial flux guess
-        iguess = kwargs.pop('iFlux', np.ones((nGroups, 3, self.sNords)))
+        iguess = kwargs.pop('iFlux', np.ones((self.nG, 3, self.sNords)))
         #
         # Ord flux vector: 0 is cell centered, 1 is left, 2 is right node
         self.ordFlux = iguess
         self.totOrdFlux = iguess
         #
         # Scattering Source term(s)
-        self.qin = np.zeros((nGroups, 3, self.sNords))  # init scatter/fission source
+        self.qin = np.zeros((self.nG, 3, self.sNords))  # init scatter/fission source
         #self.qin[0, 0, :] = 5e10
-        self.previousQin = np.ones((nGroups, 3, self.sNords))  # init scatter/fission source
+        self.previousQin = np.ones((self.nG, 3, self.sNords))  # init scatter/fission source
         #
         # optional volumetric source (none by default, fission or user-set possible)
-        self.S = kwargs.pop('source', np.zeros((nGroups, 3, self.sNords)))
+        self.S = kwargs.pop('source', np.zeros((self.nG, 3, self.sNords)))
 
     def _computeDeltaX(self):
-        return np.abs(self.nodeVs[0] - self.nodeVs[1])
+        self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
 
     def _computeCentroidFlux(self):
         """
@@ -144,7 +244,7 @@ class FE1DSnElement(object):
             self.totOrdFlux = fluxVec
         self._computeCentroidFlux()
 
-    def getElemMatrix(self, g):
+    def getElemMatrix(self, g, totalXs):
         """
         Returns element matrix for group g foran _interior_ element.
         Remember to account for boundary conditions elsewhere!
@@ -159,7 +259,7 @@ class FE1DSnElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
         feI = np.array([[1, -1], [-1, 1]])
-        elemMatrix = (1 / self.deltaX) * feI + (self.totalXs[g] / 2.) * feI
+        elemMatrix = (1 / self.deltaX) * feI + (totalXs[g] / 2.) * feI
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -169,6 +269,12 @@ class FE1DSnElement(object):
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
         elemRHS = 0.5 * np.array([self.qin[g, 0, o], self.S[g, 0, o]])
         return elemIDRHS, elemRHS
+
+    def resetTotOrdFlux(self):
+        self.totOrdFlux = np.zeros((self.nG, 3, self.sNords))
+
+    def resetOrdFlux(self):
+        self.ordFlux = np.zeros((self.nG, 3, self.sNords))
 
     def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
         """
