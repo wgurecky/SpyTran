@@ -136,7 +136,7 @@ class FE1DSnElement(object):
         Set all group and ord fluxes at both supports points _and_ centroid
         in the 1D finite element.
         """
-        if fluxVec.shape() != self.ordFlux.shpe():
+        if fluxVec.shape != self.ordFlux.shape:
             sys.exit("FATALITY: flux vec shape mismatch when setting FE flux")
         if fluxType is 'scattered':
             self.ordFlux = fluxVec
