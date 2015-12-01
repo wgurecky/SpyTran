@@ -35,7 +35,7 @@ class SnFe1D(object):
         gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
         self.superMesh = superMesh(gmshMesh, materialDict)    # build the mesh
         self.depth = 0  # scattering source iteration depth
-        self.constructA()
+        self.buildTransOp()
 
     def scatterSource(self):
         """
@@ -47,14 +47,14 @@ class SnFe1D(object):
         self.superMesh.scatter(self.depth, self.keff)
         self.depth += 1
 
-    def constructA(self):
+    def buildTransOp(self):
         """
         Construct transport operator A:
         for region in regions:
             for elements in region:
                 stamp elmA into sysA
         """
-        self.superMesh.constructA()
+        self.superMesh.buildSysMatrix()
 
     def solveFlux(self):
         """
@@ -81,79 +81,32 @@ class superMesh(object):
     representation.
     """
     def __init__(self, gmshMesh, materialDict):
-        for regionID, region in gmshMesh.regions.iteritems():
-            if region['type'] == 'interior':
-                self.regions[regionID] = regionMesh(region, materialDict[region['material']])
+        self.regions = {}     # mesh subregion dictionary
+        self.nNodes = 0    # number of nodes in mesh
+        for regionID, gmshRegion in gmshMesh.regions.iteritems():
+            if gmshRegion['type'] == 'interior':
+                self.regions[regionID] = regionMesh(gmshRegion, materialDict[gmshRegion['material']])
+                self.nNodes += gmshRegion['nodes'].shape[0]
+            elif gmshRegion['type'] == 'bc':
+                # mark boundary nodes
+                pass
+            else:
+                print("Unknown region type sepecified in gmsh input. Ignoring")
 
     def scatter(self, depth, keff):
         for regionID, region in self.regions.iteritems():
-            for elementID, element in region.elements.iteritems():
-                element.sweepOrd(region.skernel, region.chiNuFission, keff, depth)
-
-
-class regionMesh(object):
-    def __init__(self, gmshRegion, material, **kwargs):
-        """
-        Each region requires a material specification.
-
-        Each region requires a node layout specification.
-        A 1D mesh has the following structure:
-        [[elementID1, x1, x2],
-         [elementID2, x2, x3]
-         ...
-        ]
-        """
-        self.totalXs = material.macroProp['Ntotal']
-        self.skernel = material.macroProp['Nskernel']
-        if 'chi' in material.macroProp.keys():
-            self.nuFission = material.macroProp['Nnufission']
-            self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
-                                       np.array([material.macroProp['Nnufission']]))
-            src = 'fission'
-        else:
-            self.nuFission = None
-            self.chiNuFission = None
-            src = kwargs.pop("source", None)
-        # Build elements in the region mesh
-        self.buildElements(gmshRegion, kwargs)
-
-    def buildElements(self, gmshRegion, kwargs):
-        self.elements = {}
-        for elementID in gmshRegion['elements']:
-            nodeIDs = elementID[1:]
-            nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-            self.elements[elementID[0]] = FE1DSnElement((nodeIDs, nodePos), kwargs)
-
-    def constructA(self, g):
-        """
-        Construct the system matrix A for group g.  This must only be done once
-        as the system matrix A is not dependent on the flux.
-        For each angle and energy the matrix A is only dependent on the
-        total cross section (energy).
-        Since A is very sparse, use scipy's sparse matrix class to save memory.
-        """
-        A = sps.eye(self.nVerts, format='dok')
-        for element in self.elements:
-            nodeIDs, sysVals = element.getElemMatrix(g)
-            for nodeID, sysVal in zip(nodeIDs, sysVals):
-                A[nodeID] = sysVal
-        return A
-
-    def constructRHS(self, g, o):
-        """
-        Must be performed before each spatial flux solve.  RHS contains
-        source terms and boundary values.  Source terms are dependent on the
-        previous scattering iterations flux values.
-        """
-        for element in self.elements:
-            nodeIDs, RHSvals = element.getRHS(g, o)
-            for nodeID, RHSval in zip(nodeIDs, RHSvals):
-                self.RHS[g][o][nodeID] = RHSval
+            region.scatterSrc(depth, keff)
 
     def buildSysMatrix(self):
         self.sysA = []
         for g in range(self.nG):
             self.sysA.append(self.constructA(g))
+
+    def constructA(self, g):
+        A = sps.eye(self.nNodes, format='dok')
+        for regionID, region in self.regions.iteritems():
+            A = region.buildRegionA(A, g)
+        return A
 
     def sweepFlux(self):
         """
@@ -176,7 +129,98 @@ class regionMesh(object):
         RHS[nodeID] = value
 
 
-class FE1DSnElement(object):
+class regionMesh(object):
+    def __init__(self, gmshRegion, material, **kwargs):
+        """
+        Each region requires a material specification.
+
+        Each region requires a node layout specification.
+        A 1D mesh has the following structure:
+        [[elementID1, x1, x2],
+         [elementID2, x2, x3]
+         ...
+        ]
+        """
+        self.totalXs = material.macroProp['Ntotal']
+        self.skernel = material.macroProp['Nskernel']
+        if 'chi' in material.macroProp.keys():
+            self.nuFission = material.macroProp['Nnufission']
+            self.chiNuFission = np.dot(np.array([material.macroProp['chi']]).T,
+                                       np.array([material.macroProp['Nnufission']]))
+            source = 'fission'
+        else:
+            self.nuFission = None
+            self.chiNuFission = None
+            source = kwargs.pop("source", None)
+        # Build elements in the region mesh
+        self.buildElements(gmshRegion, source, **kwargs)
+        self.linkBoundaryElements(gmshRegion)
+
+    def buildElements(self, gmshRegion, **kwargs):
+        """
+        Initilize and store interior elements.
+        """
+        self.elements = {}
+        for element in gmshRegion['elements']:
+            nodeIDs = element[1:]
+            nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), **kwargs)
+
+    def linkBoundaryElements(self, gmshRegion):
+        """
+        Store boundary elements that border this region.  Link the interior element
+        with its corrosponding boundary element
+        """
+        self.belements = {}  # boundary element dict (empty if subregion contains no boundaries)
+        for bctype, bcElms in gmshRegion['bcElms'].iteritems():
+            for bcElmID, nodeIDs in bcElms.iteritems():
+                nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+                self.belements[bcElmID] = BoundaryElement(bctype, (nodeIDs, nodePos), self.elements[bcElmID])
+
+    def buildRegionA(self, A, g):
+        """
+        Populate matrix A for group g for nodes in this region.
+        This must only be done once
+        as the system matrix A is not dependent on the flux.
+        For each angle and energy the matrix A is only dependent on the
+        total cross section (energy).
+        Since A is very sparse, use scipy's sparse matrix class to save memory.
+        """
+        for elementID, element in self.elements.iteritems():
+            nodeIDs, sysVals = element.getElemMatrix(g, self.totalXs)
+            for nodeID, sysVal in zip(nodeIDs, sysVals):
+                A[nodeID] = sysVal
+        return A
+
+    def buildRegionRHS(self, RHS, g, o):
+        """
+        Must be performed before each spatial flux solve.  RHS contains
+        source terms and boundary values.  Source terms are dependent on the
+        previous scattering iterations flux values.
+        """
+        for elementID, element in self.elements.iteritems():
+            nodeIDs, RHSvals = element.getRHS(g, o)
+            for nodeID, RHSval in zip(nodeIDs, RHSvals):
+                RHS[g][o][nodeID] = RHSval
+        return RHS
+
+    def setRegionBCsA(self, A, g):
+        for belementID, belement in self.belements.iteritems():
+            pass
+
+    def setRegionBCsRHS(self, RHS, g, o):
+        for belementID, belement in self.belements.iteritems():
+            pass
+
+    def scatterSrc(self, depth, keff):
+        """
+        Perform scattering souce iteration for all elements in region.
+        """
+        for elementID, element in self.elements.iteritems():
+            element.sweepOrd(self.skernel, self.chiNuFission, keff, depth)
+
+
+class InteriorElement(object):
     """
     Finite element 1D Sn class.
 
@@ -214,11 +258,21 @@ class FE1DSnElement(object):
         #
         # Scattering Source term(s)
         self.qin = np.zeros((self.nG, 3, self.sNords))  # init scatter/fission source
-        #self.qin[0, 0, :] = 5e10
         self.previousQin = np.ones((self.nG, 3, self.sNords))  # init scatter/fission source
         #
         # optional volumetric source (none by default, fission or user-set possible)
         self.S = kwargs.pop('source', np.zeros((self.nG, 3, self.sNords)))
+        self.multiplying = False
+        if type(self.S) is str:
+            if self.S == 'fission':
+                self.multiplying = True
+            else:
+                self.S = np.zeros((self.nG, 3, self.sNords))
+        elif self.S is None:
+            self.S = np.zeros((self.nG, 3, self.sNords))
+        elif type(self.S) is np.ndarray:
+            if self.S.shape != (self.nG, 3, self.sNords):
+                sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, 3, sNords).")
 
     def _computeDeltaX(self):
         self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
@@ -259,7 +313,7 @@ class FE1DSnElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
         feI = np.array([[1, -1], [-1, 1]])
-        elemMatrix = (1 / self.deltaX) * feI + (totalXs[g] / 2.) * feI
+        elemMatrix = (1 / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -267,7 +321,7 @@ class FE1DSnElement(object):
         Produces right hand side of neutron balance for this element.
         """
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
-        elemRHS = 0.5 * np.array([self.qin[g, 0, o], self.S[g, 0, o]])
+        elemRHS = 0.5 * np.array([self.qin[g, 0, o], self.qin[g, 0, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
@@ -316,3 +370,37 @@ class FE1DSnElement(object):
         ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
         weights[0][:] = (2 * lw + 1) * ggprimeInScatter
         return np.sum(weights.T * self.legArray, axis=0)
+
+
+class BoundaryElement(object):
+    """
+    In 1D boundary conditions are specified on a node.
+    Equivillent to a boundary element in 2D.
+    Contains methods to compute face normals needed for setting vacuume and
+    reflective boundary conditions.
+
+    Notes:
+        Boundary condition assignment only works for CONVEX shapes.
+        No interior corners allowed!!
+    """
+    def __init__(self, bcType, nodes, parentElement):
+        """
+        bcType is a str:  "vac" or "ref"
+        Requres interior element on which the boundary node resides.
+        This is required for computing the outward normals.
+
+        x---Eb----o----Ei----o----Ei--
+
+        where x is the boundary node, o are interior nodes and Eb is the
+        boundary element.
+        """
+        # Store node IDs in element and node positions
+        self.nodeIDs, self.nodeVs = nodes
+        # Link to the parent element.  parent element class contains
+        # ordinate direction and node location info required to determine
+        # outward normals
+        self.parent = parentElement
+        self.bcType = bcType
+
+    def computeOutNormals(self):
+        pass

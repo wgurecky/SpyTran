@@ -140,8 +140,15 @@ class gmshMesh(object):
                 self.regions[regionID]['bc'] = self.regionInfo[regionID]['info']
 
     def regionNodes(self):
+        """
+        Identify nodes that reside in each region.
+        """
         for regionID, region in self.regions.iteritems():
             if region['type'] == 'bc' and self.dim == 1:
+                # Degenerate case in 1D.  Boundary element is just made up of
+                # one node.
+                # A boundary node in 1D is techically not an 'element' therefore
+                # has no 'elements'
                 self.regions[regionID]['nodeIDs'] = region['elementIDs']
             else:
                 regionElementIndexs = np.unique([np.where(self.elements[:, 0] == i) for i in region['elementIDs']])
@@ -161,26 +168,39 @@ class gmshMesh(object):
         for regionID, region in self.regions.iteritems():
             # check for elements containing boundary nodes
             if region['type'] == 'interior':
-                self.regions[regionID]['bcNodes'] = {}
+                self.regions[regionID]['bcElms'] = {}
                 for boundaryRegion in boundaryRegions:
+                    # Identify bounday nodes
                     boundingNodes = np.intersect1d(region['nodeIDs'], boundaryRegion[1])
+                    # find element(s) to which the boundary nodes corrospond
+                    # if dim == 1, we have a single node bound to a single ele
+                    # if dim == 2, the boundary _element_ only shares its two
+                    # verticies with ONE element
+                    boundingEleDict = self.linkBele2Iele(region, boundingNodes)
                     bcType = boundaryRegion[0]
                     if boundingNodes.any():
-                        self.regions[regionID]['bcNodes'][bcType] = boundingNodes
+                        self.regions[regionID]['bcElms'][bcType] = boundingEleDict
                     else:
-                        self.regions[regionID]['bcNodes'][bcType] = None
+                        self.regions[regionID]['bcElms'][bcType] = None
+
+    def linkBele2Iele(self, region, boundingNodes):
+        """
+        Link boundary element to interior element.
+        """
+        bEdict = {}
+        for element in region['elements']:
+            bNodeIDs = np.intersect1d(boundingNodes, element[1:])
+            if len(bNodeIDs) == self.dim:
+                bEdict[element[0]] = bNodeIDs
+            else:
+                pass
+        return bEdict
 
 
 class gmsh1DMesh(gmshMesh):
     def __init__(self, **kwargs):
         super(gmsh1DMesh, self).__init__(**kwargs)
         self.runGMSH(1)
-        #self.mesh = defaultdict(dict)
-        #for regionID, region in self.regions.iteritems():
-        #    if region['type'] == 'interior':
-        #        for elementID, nodeIDs in zip(region['elements'][:, 0], region['elements'][:, 1:]):
-        #            for nodeID in nodeIDs:
-        #                self.mesh[regionID][elementID][nodeID] = nodeInfo
 
     def gmsh1Dparse(self):
         """
