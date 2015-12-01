@@ -97,6 +97,13 @@ class superMesh(object):
         for regionID, region in self.regions.iteritems():
             region.scatterSrc(depth, keff)
 
+    def buildSysRHS(self):
+        self.RHS = np.zeros((self.nG, self.sNords, self.nNodes))
+        for regionID, region in self.regions.iteritems():
+            for g in range(self.nG):
+                for o in range(self.sNords):
+                    self.RHS = region.buildRegionRHS(self.RHS, g, o)
+
     def buildSysMatrix(self):
         self.sysA = []
         for g in range(self.nG):
@@ -122,11 +129,13 @@ class superMesh(object):
         Inside A, the row corresponding to the boundary node is 0 everywhere
         but at the diagonal for a dirichlet BC.
         """
-        A[nodeID] *= 0.0
-        A[nodeID, nodeID] = 1.0
+        for regionID, region in self.regions.iteritems():
+            for g in range(self.nG):
+                self.sysA[g] = region.setRegionBCsA(self.sysA[g])
 
     def dirichletBCtoRHS(self, nodeID, RHS, value):
-        RHS[nodeID] = value
+        for regionID, region in self.regions.iteritems():
+            pass
 
 
 class regionMesh(object):
@@ -204,13 +213,18 @@ class regionMesh(object):
                 RHS[g][o][nodeID] = RHSval
         return RHS
 
-    def setRegionBCsA(self, A, g):
+    def setRegionBCsA(self, A):
         for belementID, belement in self.belements.iteritems():
-            pass
+            for nodeID in belement.nodeIDs:
+                A[nodeID, :] *= 0.0
+                A[nodeID, nodeID] = 1.0
+        return A
 
     def setRegionBCsRHS(self, RHS, g, o):
         for belementID, belement in self.belements.iteritems():
-            pass
+            for nodeID in belement.nodeIDs:
+                RHS[:][:][nodeID] = belement.bcFlux[nodeID]
+        return RHS
 
     def scatterSrc(self, depth, keff):
         """
@@ -249,6 +263,7 @@ class InteriorElement(object):
         self._computeDeltaX()  # Compute deltaX
         #
         # Flux and source storage
+        self.bankedBcFlux = np.zeros((self.nG, 3, self, self.sNords))
         # initial flux guess
         iguess = kwargs.pop('iFlux', np.ones((self.nG, 3, self.sNords)))
         #
