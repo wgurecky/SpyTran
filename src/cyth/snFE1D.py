@@ -30,12 +30,13 @@ class SnFe1D(object):
         self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.nG = nGroups                                       # number of energy groups
-        self.legArray = createLegArray(self.snMu, self.maxLegOrder)  # Stores leg polys
+        self.legArray = createLegArray(self.sNmu, self.maxLegOrder)  # Stores leg polys
         #
         gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
-        self.superMesh = superMesh(gmshMesh, materialDict)    # build the mesh
+        self.superMesh = superMesh(gmshMesh, materialDict, nGroups, sNords)    # build the mesh
         self.depth = 0  # scattering source iteration depth
         self.buildTransOp()
+        self.buildRHS()
 
     def scatterSource(self):
         """
@@ -45,6 +46,7 @@ class SnFe1D(object):
                 element.scatter()
         """
         self.superMesh.scatter(self.depth, self.keff)
+        self.superMesh.buildSysRHS()
         self.depth += 1
 
     def buildTransOp(self):
@@ -56,11 +58,14 @@ class SnFe1D(object):
         """
         self.superMesh.buildSysMatrix()
 
+    def buildRHS(self):
+        self.superMesh.buildSysRHS()
+
     def solveFlux(self):
         """
         Solve Ax=b.
         """
-        pass
+        self.superMesh.sweepFlux()
 
     def writeFlux(self):
         """
@@ -80,13 +85,15 @@ class superMesh(object):
     Contains mappings betwen array/matrix field representation and element class
     representation.
     """
-    def __init__(self, gmshMesh, materialDict):
+    def __init__(self, gmshMesh, materialDict, nG, sNords):
+        self.nG, self.sNords = nG, sNords
         self.regions = {}     # mesh subregion dictionary
         self.nNodes = 0    # number of nodes in mesh
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = regionMesh(gmshRegion, materialDict[gmshRegion['material']])
-                self.nNodes += gmshRegion['nodes'].shape[0]
+                if self.nNodes == 0:
+                    self.nNodes = int(np.max(gmshRegion['nodes'][:, 0]) + 1)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
                 pass
@@ -98,11 +105,11 @@ class superMesh(object):
             region.scatterSrc(depth, keff)
 
     def buildSysRHS(self):
-        self.RHS = np.zeros((self.nG, self.sNords, self.nNodes))
+        self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))
         for regionID, region in self.regions.iteritems():
             for g in range(self.nG):
                 for o in range(self.sNords):
-                    self.RHS = region.buildRegionRHS(self.RHS, g, o)
+                    self.sysRHS = region.buildRegionRHS(self.sysRHS, g, o)
 
     def buildSysMatrix(self):
         self.sysA = []
@@ -122,7 +129,7 @@ class superMesh(object):
         """
         for g in range(self.nG):
             for o in range(self.sNords):
-                self.scFluxField[g][o] = sps.linalg.gmres(self.sysA[g], self.RHS[g][o], tol=1e-5)
+                self.scFluxField[g][o] = sps.linalg.gmres(self.sysA[g], self.sysRHS[g][o], tol=1e-5)
 
     def dirichletBCtoA(self, nodeID, A):
         """
@@ -165,7 +172,7 @@ class regionMesh(object):
         self.buildElements(gmshRegion, source, **kwargs)
         self.linkBoundaryElements(gmshRegion)
 
-    def buildElements(self, gmshRegion, **kwargs):
+    def buildElements(self, gmshRegion, source, **kwargs):
         """
         Initilize and store interior elements.
         """
@@ -173,7 +180,7 @@ class regionMesh(object):
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
             nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), **kwargs)
+            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), source, **kwargs)
 
     def linkBoundaryElements(self, gmshRegion):
         """
@@ -182,9 +189,10 @@ class regionMesh(object):
         """
         self.belements = {}  # boundary element dict (empty if subregion contains no boundaries)
         for bctype, bcElms in gmshRegion['bcElms'].iteritems():
-            for bcElmID, nodeIDs in bcElms.iteritems():
-                nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-                self.belements[bcElmID] = BoundaryElement(bctype, (nodeIDs, nodePos), self.elements[bcElmID])
+            if bcElms is not None:
+                for bcElmID, nodeIDs in bcElms.iteritems():
+                    nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+                    self.belements[bcElmID] = BoundaryElement(bctype, (nodeIDs, nodePos), self.elements[bcElmID])
 
     def buildRegionA(self, A, g):
         """
@@ -244,7 +252,7 @@ class InteriorElement(object):
     the souce term at the finite element centroid.
     """
 
-    def __init__(self, nodes, **kwargs):
+    def __init__(self, nodes, source, **kwargs):
         """
         takes ([nodeIDs], [nodePos]) tuple.
         Optionally specify number of groups, leg order and number of ordinates
@@ -263,7 +271,7 @@ class InteriorElement(object):
         self._computeDeltaX()  # Compute deltaX
         #
         # Flux and source storage
-        self.bankedBcFlux = np.zeros((self.nG, 3, self, self.sNords))
+        self.bankedBcFlux = np.zeros((self.nG, 3, self.sNords))
         # initial flux guess
         iguess = kwargs.pop('iFlux', np.ones((self.nG, 3, self.sNords)))
         #
@@ -276,7 +284,8 @@ class InteriorElement(object):
         self.previousQin = np.ones((self.nG, 3, self.sNords))  # init scatter/fission source
         #
         # optional volumetric source (none by default, fission or user-set possible)
-        self.S = kwargs.pop('source', np.zeros((self.nG, 3, self.sNords)))
+        #self.S = kwargs.pop('source', np.zeros((self.nG, 3, self.sNords)))
+        self.S = source
         self.multiplying = False
         if type(self.S) is str:
             if self.S == 'fission':
@@ -419,3 +428,9 @@ class BoundaryElement(object):
 
     def computeOutNormals(self):
         pass
+
+
+if __name__ == "__main__":
+    # Construct mesh
+    # Inspect the system matrix A
+    pass

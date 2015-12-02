@@ -93,6 +93,7 @@ class gmshMesh(object):
                     words[k + 1] += ','
             nodes.append([float(x.strip(', ')) for x in words])
         self.nodes = np.array(nodes)
+        self.nodes[:, 0] -= 1  # fix annoying off by 1 indexing
 
     def createElements(self, flaggedDict):
         """
@@ -109,7 +110,7 @@ class gmshMesh(object):
                 elements.append([int(x.strip(', ')) for x in words])
             except:
                 pass
-        self.elements = np.array(elements)
+        self.elements = np.array(elements) - 1
 
     def createRegions(self, flaggedDict):
         """
@@ -130,7 +131,7 @@ class gmshMesh(object):
             for j, line in enumerate(self.inpFL[elsetDefStart + 1: elsetDefEnd]):
                 words = line.split()
                 #words[0] = str(j + 1) + ', '
-                elements.append([int(x.strip(', ')) for x in words])
+                elements.append([int(x.strip(', ')) - 1 for x in words])
             self.regions[regionID] = {}
             self.regions[regionID]['elementIDs'] = np.array(elements).flatten()
             self.regions[regionID]['type'] = self.regionInfo[regionID]['type']
@@ -154,6 +155,10 @@ class gmshMesh(object):
                 regionElementIndexs = np.unique([np.where(self.elements[:, 0] == i) for i in region['elementIDs']])
                 self.regions[regionID]['elements'] = np.array([self.elements[row] for row in regionElementIndexs])
                 self.regions[regionID]['nodeIDs'] = np.unique(self.regions[regionID]['elements'][:, 1:].flatten())
+            #self.regions[regionID]['nodes'] = np.take(self.nodes, self.regions[regionID]['nodeIDs'] - 1, axis=0)
+            self.regions[regionID]['nodes'] = self.nodes
+            #self.regions[regionID]['nodes'] = np.vstack((np.zeros(self.regions[regionID]['nodes'].shape[1]),
+            #                                            self.regions[regionID]['nodes']))
 
     def markRegionBCs(self):
         """
