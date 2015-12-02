@@ -101,6 +101,7 @@ class superMesh(object):
                 pass
             else:
                 print("Unknown region type sepecified in gmsh input. Ignoring")
+        print("Number of nodes in mesh: " + str(self.nNodes))
 
     def scatter(self, depth, keff):
         for regionID, region in self.regions.iteritems():
@@ -117,6 +118,7 @@ class superMesh(object):
         self.sysA = []
         for g in range(self.nG):
             self.sysA.append(self.constructA(g))
+        self.dirichletBCtoA()
 
     def constructA(self, g):
         A = sps.eye(self.nNodes, format='dok')
@@ -133,7 +135,7 @@ class superMesh(object):
             for o in range(self.sNords):
                 self.scFluxField[g][o] = sps.linalg.gmres(self.sysA[g], self.sysRHS[g][o], tol=1e-5)
 
-    def dirichletBCtoA(self, nodeID, A):
+    def dirichletBCtoA(self):
         """
         Inside A, the row corresponding to the boundary node is 0 everywhere
         but at the diagonal for a dirichlet BC.
@@ -142,7 +144,7 @@ class superMesh(object):
             for g in range(self.nG):
                 self.sysA[g] = region.setRegionBCsA(self.sysA[g])
 
-    def dirichletBCtoRHS(self, nodeID, RHS, value):
+    def dirichletBCtoRHS(self, RHS):
         for regionID, region in self.regions.iteritems():
             pass
 
@@ -192,7 +194,7 @@ class regionMesh(object):
         """
         self.belements = {}  # boundary element dict (empty if subregion contains no boundaries)
         for bctype, bcElms in gmshRegion['bcElms'].iteritems():
-            if bcElms is not None:
+            if type(bcElms) is dict:
                 for bcElmID, nodeIDs in bcElms.iteritems():
                     nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                     self.belements[bcElmID] = BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
@@ -227,7 +229,10 @@ class regionMesh(object):
     def setRegionBCsA(self, A):
         for belementID, belement in self.belements.iteritems():
             for nodeID in belement.nodeIDs:
-                A[nodeID, :] *= 0.0
+                # determine if fixed or free.  If fixed, apply diriclet bc to A row
+                # OH NO we need a seperate A for each ordinate direciton and
+                # energy.
+                A[nodeID, :] = 0.0
                 A[nodeID, nodeID] = 1.0
         return A
 
@@ -431,6 +436,19 @@ class BoundaryElement(object):
         self.parent = parentElement
         self.bcData = bcData  # could be a string e.g: 'vac', or could be a dict
         self.computeOutNormal()
+        self.computeInOrds()
+
+    def applyBC(self, RHS):
+        if self.bcData == 'vac':
+            return self.vacBC(RHS)
+        elif type(self.bcData) is np.ndarray:
+            if self.bcData.shape == self.parent.totOrdFlux.shape:
+                return self.diricletBC(RHS)
+            else:
+                print("WARNING: flux shape mis-match in BC assignment.")
+        else:
+            print("WARNING: BC assignment failed.  Assuming free boundary.")
+        return RHS
 
     def computeOutNormal(self):
         # obtain node(s) that are common between parent ele and boundary.
@@ -441,6 +459,35 @@ class BoundaryElement(object):
         # Outward normal must be (exteterior_vp - interior_vp) / |ext_vp - int_vp|
         # In 2D and 3D we must find orthogonal line to surface/line
         self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)
+
+    def computeInOrds(self):
+        """ Compute inward ordinate directions.  Those ords with dot product with the
+        outward normal negative """
+        # Works for 1D only at the moment, simple inspection of the
+        # magnitude of multiplication of direction
+        # cosines works fine.
+        faceDot = self.parent.sNmu * self.outwardNormal
+        self.inOs = np.where(faceDot < 0)
+
+    def vacBC(self, RHS):
+        """
+        RHS for all groups, g,  and for inward facing ordinates, are set to
+        zero.
+        """
+        RHS[:, self.inOs, self.nodeIDs] = 0
+        return RHS
+
+    def diricletBC(self, RHS):
+        """
+        Fixed flux bc.
+        """
+        RHS[:, :, self.nodeIDs] = self.bcData
+        return RHS
+
+    def refBC(self, RHS):
+        # bank outward ordinate fluxes in parent cell for use in next
+        # source iteration.
+        return RHS
 
 
 if __name__ == "__main__":
