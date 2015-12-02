@@ -26,7 +26,9 @@ class gmshMesh(object):
 
     def runGMSH(self, dim=1):
         self.dim = dim
+        print("Constructing the mesh.  Executing GMSH.")
         subprocess.call(['gmsh', str(self.geoFile), '-' + str(dim), '-o', self.inpFileName, '-v', '0'])
+        print("Meshing complete.")
         self.inpFL = fileToList(self.inpFileName)
         self.parseINP()
         self.regionNodes()
@@ -59,7 +61,7 @@ class gmshMesh(object):
                    'Elm': "\*Element",
                    'ELSET': "\*ELSET"}
         for key, val in reFlags.iteritems():
-            reFlags[key] = re.compile(val)
+            reFlags[key] = re.compile(val, flags=re.I)
         # Find locations of keywords in file
         # WARNING: there can be multiple instances of the *ELEMENT keyword
         # due to different mesh element types: tets are C3D6 octs are C3D8
@@ -79,7 +81,7 @@ class gmshMesh(object):
 
     def createNodes(self, flaggedDict):
         """
-        ROUND NODES COORDINATES and create self.nodes array
+        Round node coordinates and create self.nodes array
         """
         nodes = []
         nodeDefLineStart = flaggedDict['Node'][0]['i'] + 1
@@ -88,10 +90,16 @@ class gmshMesh(object):
             words = line.split()
             # fix
             for k, word in enumerate(words[1:]):
-                words[k + 1] = '%.10e' % round(float(word.strip(',')), 10)
+                try:
+                    words[k + 1] = '%.10e' % round(float(word.strip(',')), 10)
+                except:
+                    break
                 if (k + 1) < 3:
                     words[k + 1] += ','
-            nodes.append([float(x.strip(', ')) for x in words])
+            try:
+                nodes.append([float(x.strip(', ')) for x in words])
+            except:
+                pass
         self.nodes = np.array(nodes)
         self.nodes[:, 0] -= 1  # fix annoying off by 1 indexing
 
@@ -183,7 +191,7 @@ class gmshMesh(object):
                     # verticies with ONE element
                     boundingEleDict = self.linkBele2Iele(region, boundingNodes)
                     bcType = boundaryRegion[0]
-                    if boundingNodes.any():
+                    if len(boundingNodes) != 0:
                         self.regions[regionID]['bcElms'][bcType] = boundingEleDict
                     else:
                         self.regions[regionID]['bcElms'][bcType] = None

@@ -19,7 +19,8 @@ class SnFe1D(object):
         - Update scattering souce in each element
     Methods can be called when necissary by a controller script.
     """
-    def __init__(self, geoFile, materialDict, nGroups=10, legOrder=8, sNords=2):
+    def __init__(self, geoFile, materialDict, bcDict, srcDict, nGroups=10,
+                 legOrder=8, sNords=2):
         """
         Matierial dict in:
             {'material_str': material_class_instance, ...}
@@ -33,7 +34,7 @@ class SnFe1D(object):
         self.legArray = createLegArray(self.sNmu, self.maxLegOrder)  # Stores leg polys
         #
         gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
-        self.superMesh = superMesh(gmshMesh, materialDict, nGroups, sNords)    # build the mesh
+        self.superMesh = superMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords)    # build the mesh
         self.depth = 0  # scattering source iteration depth
         self.buildTransOp()
         self.buildRHS()
@@ -85,13 +86,14 @@ class superMesh(object):
     Contains mappings betwen array/matrix field representation and element class
     representation.
     """
-    def __init__(self, gmshMesh, materialDict, nG, sNords):
+    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords):
         self.nG, self.sNords = nG, sNords
         self.regions = {}     # mesh subregion dictionary
         self.nNodes = 0    # number of nodes in mesh
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
-                self.regions[regionID] = regionMesh(gmshRegion, materialDict[gmshRegion['material']])
+                self.regions[regionID] = regionMesh(gmshRegion, materialDict[gmshRegion['material']],
+                                                    bcDict, srcDict.pop(gmshRegion['material'], None))
                 if self.nNodes == 0:
                     self.nNodes = int(np.max(gmshRegion['nodes'][:, 0]) + 1)
             elif gmshRegion['type'] == 'bc':
@@ -146,7 +148,7 @@ class superMesh(object):
 
 
 class regionMesh(object):
-    def __init__(self, gmshRegion, material, **kwargs):
+    def __init__(self, gmshRegion, material, bcDict, source, **kwargs):
         """
         Each region requires a material specification.
 
@@ -157,6 +159,7 @@ class regionMesh(object):
          ...
         ]
         """
+        self.bcDict = bcDict
         self.totalXs = material.macroProp['Ntotal']
         self.skernel = material.macroProp['Nskernel']
         if 'chi' in material.macroProp.keys():
@@ -167,7 +170,7 @@ class regionMesh(object):
         else:
             self.nuFission = None
             self.chiNuFission = None
-            source = kwargs.pop("source", None)
+            #source = kwargs.pop("source", None)
         # Build elements in the region mesh
         self.buildElements(gmshRegion, source, **kwargs)
         self.linkBoundaryElements(gmshRegion)
@@ -192,7 +195,7 @@ class regionMesh(object):
             if bcElms is not None:
                 for bcElmID, nodeIDs in bcElms.iteritems():
                     nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-                    self.belements[bcElmID] = BoundaryElement(bctype, (nodeIDs, nodePos), self.elements[bcElmID])
+                    self.belements[bcElmID] = BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
 
     def buildRegionA(self, A, g):
         """
@@ -297,6 +300,8 @@ class InteriorElement(object):
         elif type(self.S) is np.ndarray:
             if self.S.shape != (self.nG, 3, self.sNords):
                 sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, 3, sNords).")
+            else:
+                pass
 
     def _computeDeltaX(self):
         self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
@@ -407,7 +412,7 @@ class BoundaryElement(object):
         Boundary condition assignment only works for CONVEX shapes.
         No interior corners allowed!!
     """
-    def __init__(self, bcType, nodes, parentElement):
+    def __init__(self, bcData, nodes, parentElement):
         """
         bcType is a str:  "vac" or "ref"
         Requres interior element on which the boundary node resides.
@@ -424,10 +429,18 @@ class BoundaryElement(object):
         # ordinate direction and node location info required to determine
         # outward normals
         self.parent = parentElement
-        self.bcType = bcType
+        self.bcData = bcData  # could be a string e.g: 'vac', or could be a dict
+        self.computeOutNormal()
 
-    def computeOutNormals(self):
-        pass
+    def computeOutNormal(self):
+        # obtain node(s) that are common between parent ele and boundary.
+        commonNodeV = np.intersect1d(self.parent.nodeVs, self.nodeVs)
+        # obtain odd man out node
+        lonelyNodeV = np.setdiff1d(self.parent.nodeVs, self.nodeVs)
+        # In 1D the outward normal vec is either -1 or 1
+        # Outward normal must be (exteterior_vp - interior_vp) / |ext_vp - int_vp|
+        # In 2D and 3D we must find orthogonal line to surface/line
+        self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)
 
 
 if __name__ == "__main__":
