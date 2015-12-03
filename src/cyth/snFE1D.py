@@ -38,6 +38,7 @@ class SnFe1D(object):
         self.depth = 0  # scattering source iteration depth
         self.buildTransOp()
         self.buildRHS()
+        self.applyBCs()
 
     def scatterSource(self):
         """
@@ -66,7 +67,7 @@ class SnFe1D(object):
         self.superMesh.buildSysRHS()
 
     def applyBCs(self):
-        self.superMesh.applyBCs()
+        self.superMesh.applyBCs(self.depth)
 
     def solveFlux(self):
         """
@@ -94,18 +95,16 @@ class superMesh(object):
     """
     def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords):
         self.nG, self.sNords = nG, sNords
+        self.nNodes = int(np.max(gmshMesh.regions.values()[0]['nodes'][:, 0] + 1))
         self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
         self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))  # total flux field
         fluxStor = (self.scFluxField, self.totFluxField)
         self.regions = {}     # mesh subregion dictionary
-        self.nNodes = 0    # number of nodes in mesh
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = regionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
                                                     bcDict, srcDict.pop(gmshRegion['material'], None))
-                if self.nNodes == 0:
-                    self.nNodes = int(np.max(gmshRegion['nodes'][:, 0]) + 1)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
                 pass
@@ -127,13 +126,12 @@ class superMesh(object):
         self.sysA = np.empty((self.nG, self.sNords), dtype=sps.dok.dok_matrix)
         for g in range(self.nG):
             for o in range(self.sNords):
-                self.sysA[g, o] = self.constructA(g)
-        self.dirichletBCtoA()
+                self.sysA[g, o] = self.constructA(g, o)
 
-    def constructA(self, g):
+    def constructA(self, g, o):
         A = sps.eye(self.nNodes, format='dok')
         for regionID, region in self.regions.iteritems():
-            A = region.buildRegionA(A, g)
+            A = region.buildRegionA(A, g, o)
         return A
 
     def sweepFlux(self):
@@ -144,12 +142,12 @@ class superMesh(object):
         for g in range(self.nG):
             for o in range(self.sNords):
                 self.scFluxField[g, o] = \
-                    sps.linalg.gmres(sps.coo_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
+                    sps.linalg.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
         self.totFluxField += self.scFluxField
 
-    def applyBCs(self):
+    def applyBCs(self, depth):
         for regionID, region in self.regions.iteritems():
-            self.sysA, self.sysRHS = region.applyBCs(self.sysA, self.sysRHS)
+            self.sysA, self.sysRHS = region.setBCs(self.sysA, self.sysRHS, depth)
 
 
 class regionMesh(object):
@@ -202,7 +200,7 @@ class regionMesh(object):
                     nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                     self.belements[bcElmID] = BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
 
-    def buildRegionA(self, A, g):
+    def buildRegionA(self, A, g, o):
         """
         Populate matrix A for group g for nodes in this region.
         This must only be done once
@@ -212,7 +210,7 @@ class regionMesh(object):
         Since A is very sparse, use scipy's sparse matrix class to save memory.
         """
         for elementID, element in self.elements.iteritems():
-            nodeIDs, sysVals = element.getElemMatrix(g, self.totalXs)
+            nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
             for nodeID, sysVal in zip(nodeIDs, sysVals):
                 A[nodeID] = sysVal
         return A
@@ -226,7 +224,8 @@ class regionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, RHSvals = element.getRHS(g, o)
             for nodeID, RHSval in zip(nodeIDs, RHSvals):
-                RHS[g][o][nodeID] = RHSval
+                #RHS[g][o][nodeID] = RHSval
+                RHS[g, o, nodeID] = RHSval
         return RHS
 
     def setBCs(self, A, RHS, depth):
@@ -285,8 +284,8 @@ class InteriorElement(object):
         self.setEleTotFlux(fluxStor[1])
         #
         # Scattering Source term(s)
-        self.qin = np.zeros((self.nG, 3, self.sNords))         # init scatter/fission source
-        self.previousQin = np.ones((self.nG, 3, self.sNords))  # required for over relaxation
+        self.qin = np.zeros((self.nG, self.sNords))         # init scatter/fission source
+        self.previousQin = np.ones(self.qin.shape)  # required for over relaxation
         #
         # Volumetric source
         self.S = source
@@ -322,7 +321,7 @@ class InteriorElement(object):
     def _computeDeltaX(self):
         self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
 
-    def getElemMatrix(self, g, totalXs):
+    def getElemMatrix(self, g, o, totalXs):
         """
         Returns element matrix for group g foran _interior_ element.
         Remember to account for boundary conditions elsewhere!
@@ -337,7 +336,7 @@ class InteriorElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
         feI = np.array([[1, -1], [-1, 1]])
-        elemMatrix = (1 / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
+        elemMatrix = (self.sNmu[o] / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -345,7 +344,7 @@ class InteriorElement(object):
         Produces right hand side of neutron balance for this element.
         """
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
-        elemRHS = 0.5 * np.array([self.qin[g, 0, o], self.qin[g, 0, o]])
+        elemRHS = 0.5 * np.array([self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
@@ -371,16 +370,16 @@ class InteriorElement(object):
         if depth >= 1:
             if depth >= 2:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = overRlx * (self.evalScatterSourceImp(g, skernel, weights, lw) - self.previousQin[g, 0, :]) + self.previousQin[g, 0, :]
+                    self.qin[g, :] = overRlx * (self.evalScatterSourceImp(g, skernel, weights, lw) - self.previousQin[g, :]) + self.previousQin[g, :]
                 self.previousQin = self.qin
             else:
                 for g in range(self.nG):
-                    self.qin[g, 0, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
+                    self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
                 self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
                 # compute gth group fission source
-                self.qin[g, 0, :] = self._computeFissionSource(g, chiNuFission, keff)
+                self.qin[g, :] = self._computeFissionSource(g, chiNuFission, keff)
             self.resetTotOrdFlux()
         elif not self.multiplying and depth == 0:
             self.qin = deepcopy(self.S)
@@ -511,13 +510,16 @@ class BoundaryElement(object):
         # [group, ordinate, n, n], where n is number of nodes in the problem
         for o in range(self.parent.sNords):
             if o in self.inOs:
-                A[:, o, self.nodeIDs, :] = 0.
-                A[:, o, self.nodeIDs, self.nodeIDs] = 1.
+                for g in range(self.parent.nG):
+                    A[g, o][self.nodeIDs, :] = 0.
+                    A[g, o][self.nodeIDs, self.nodeIDs] = 1.
         return A
 
     def fixedBC2A(self, A):
-        A[:, :, self.nodeIDs, :] = 0.
-        A[:, :, self.nodeIDs, self.nodeIDs] = 1.
+        for o in range(self.parent.sNords):
+            for g in range(self.parent.nG):
+                A[g, o][self.nodeIDs, :] = 0.
+                A[g, o][self.nodeIDs, self.nodeIDs] = 1.
         return A
 
     def vacBC(self, RHS):
@@ -540,7 +542,8 @@ class BoundaryElement(object):
         """
         Fixed flux bc.
         """
-        RHS[:, :, self.nodeIDs] = self.bcData
+        for bcNodeID in self.nodeIDs:
+            RHS[:, :, bcNodeID] = self.bcData
         return RHS
 
     def postSweepRefBC(self, RHS):

@@ -20,12 +20,20 @@ def inputPreProc(inFile):
     pass
 
 
-def main(geoFile, materialDict, bcDict, srcDict, **kwargs):
+def initSolve(geoFile, materialDict, bcDict, srcDict, **kwargs):
     nG = kwargs.pop('nG', 10)
     lOrder = kwargs.pop('lOrder', 8)
     sNords = kwargs.pop('sN', 2)
     solver = fe1D.SnFe1D(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords)
     return solver
+
+
+def nonMultiplying(slv):
+    pass
+
+
+def multiplying():
+    pass
 
 
 if __name__ == "__main__":
@@ -35,15 +43,15 @@ if __name__ == "__main__":
     geoFile = 'utils/testline2.geo'
     # Materials
     material1 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
-    material2 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 2.e21 / 1e24})
+    material2 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 1.e5 / 1e24})
     materialDict = {'mat_1': material1,
                     'mat_2': material2}
     # Boundary conditions
     fixedFlux1 = np.zeros((nG, sN))
-    fixedFlux1[1, 0] = 1e10
+    fixedFlux1[1, 0] = 1e10    # 1e10 flux in ord 0, grp 1
     bcDict = {'bc1': fixedFlux1,
               'bc2': 'vac'}
     # Volumetric sources
     srcDict = {'mat_1': None,
                'mat_2': None}
-    slv = main(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
+    slv = initSolve(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
