@@ -52,15 +52,21 @@ class SnFe1D(object):
 
     def buildTransOp(self):
         """
-        Construct transport operator A:
+        Construct transport operator, A:
         for region in regions:
             for elements in region:
                 stamp elmA into sysA
+        Note A is not the complete transport operator, it only moves neutrons through space,
+        not in energy or angle.  The scattering souce iteration takes care of energy
+        and angle redistribution.
         """
         self.superMesh.buildSysMatrix()
 
     def buildRHS(self):
         self.superMesh.buildSysRHS()
+
+    def applyBCs(self):
+        self.superMesh.applyBCs()
 
     def solveFlux(self):
         """
@@ -88,11 +94,15 @@ class superMesh(object):
     """
     def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords):
         self.nG, self.sNords = nG, sNords
+        self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
+        self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
+        self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))  # total flux field
+        fluxStor = (self.scFluxField, self.totFluxField)
         self.regions = {}     # mesh subregion dictionary
         self.nNodes = 0    # number of nodes in mesh
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
-                self.regions[regionID] = regionMesh(gmshRegion, materialDict[gmshRegion['material']],
+                self.regions[regionID] = regionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
                                                     bcDict, srcDict.pop(gmshRegion['material'], None))
                 if self.nNodes == 0:
                     self.nNodes = int(np.max(gmshRegion['nodes'][:, 0]) + 1)
@@ -108,16 +118,16 @@ class superMesh(object):
             region.scatterSrc(depth, keff)
 
     def buildSysRHS(self):
-        self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))
         for regionID, region in self.regions.iteritems():
             for g in range(self.nG):
                 for o in range(self.sNords):
                     self.sysRHS = region.buildRegionRHS(self.sysRHS, g, o)
 
     def buildSysMatrix(self):
-        self.sysA = []
+        self.sysA = np.empty((self.nG, self.sNords), dtype=sps.dok.dok_matrix)
         for g in range(self.nG):
-            self.sysA.append(self.constructA(g))
+            for o in range(self.sNords):
+                self.sysA[g, o] = self.constructA(g)
         self.dirichletBCtoA()
 
     def constructA(self, g):
@@ -133,24 +143,17 @@ class superMesh(object):
         """
         for g in range(self.nG):
             for o in range(self.sNords):
-                self.scFluxField[g][o] = sps.linalg.gmres(self.sysA[g], self.sysRHS[g][o], tol=1e-5)
+                self.scFluxField[g, o] = \
+                    sps.linalg.gmres(sps.coo_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
+        self.totFluxField += self.scFluxField
 
-    def dirichletBCtoA(self):
-        """
-        Inside A, the row corresponding to the boundary node is 0 everywhere
-        but at the diagonal for a dirichlet BC.
-        """
+    def applyBCs(self):
         for regionID, region in self.regions.iteritems():
-            for g in range(self.nG):
-                self.sysA[g] = region.setRegionBCsA(self.sysA[g])
-
-    def dirichletBCtoRHS(self, RHS):
-        for regionID, region in self.regions.iteritems():
-            pass
+            self.sysA, self.sysRHS = region.applyBCs(self.sysA, self.sysRHS)
 
 
 class regionMesh(object):
-    def __init__(self, gmshRegion, material, bcDict, source, **kwargs):
+    def __init__(self, gmshRegion, fluxStor, material, bcDict, source, **kwargs):
         """
         Each region requires a material specification.
 
@@ -174,10 +177,10 @@ class regionMesh(object):
             self.chiNuFission = None
             #source = kwargs.pop("source", None)
         # Build elements in the region mesh
-        self.buildElements(gmshRegion, source, **kwargs)
+        self.buildElements(gmshRegion, fluxStor, source, **kwargs)
         self.linkBoundaryElements(gmshRegion)
 
-    def buildElements(self, gmshRegion, source, **kwargs):
+    def buildElements(self, gmshRegion, fluxStor, source, **kwargs):
         """
         Initilize and store interior elements.
         """
@@ -185,7 +188,7 @@ class regionMesh(object):
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
             nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), source, **kwargs)
+            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
 
     def linkBoundaryElements(self, gmshRegion):
         """
@@ -226,20 +229,19 @@ class regionMesh(object):
                 RHS[g][o][nodeID] = RHSval
         return RHS
 
-    def setRegionBCsA(self, A):
+    def setBCs(self, A, RHS, depth):
+        A = self.setRegionBCsA(A, depth)
+        RHS = self.setRegionBCsRHS(RHS, depth)
+        return A, RHS
+
+    def setRegionBCsA(self, A, depth):
         for belementID, belement in self.belements.iteritems():
-            for nodeID in belement.nodeIDs:
-                # determine if fixed or free.  If fixed, apply diriclet bc to A row
-                # OH NO we need a seperate A for each ordinate direciton and
-                # energy.
-                A[nodeID, :] = 0.0
-                A[nodeID, nodeID] = 1.0
+            A = belement.applyBC2A(A, depth)
         return A
 
-    def setRegionBCsRHS(self, RHS, g, o):
+    def setRegionBCsRHS(self, RHS, depth):
         for belementID, belement in self.belements.iteritems():
-            for nodeID in belement.nodeIDs:
-                RHS[:][:][nodeID] = belement.bcFlux[nodeID]
+            RHS = belement.applyBC2RHS(RHS, depth)
         return RHS
 
     def scatterSrc(self, depth, keff):
@@ -260,7 +262,7 @@ class InteriorElement(object):
     the souce term at the finite element centroid.
     """
 
-    def __init__(self, nodes, source, **kwargs):
+    def __init__(self, nodes, fluxStor, source, **kwargs):
         """
         takes ([nodeIDs], [nodePos]) tuple.
         Optionally specify number of groups, leg order and number of ordinates
@@ -279,20 +281,14 @@ class InteriorElement(object):
         self._computeDeltaX()  # Compute deltaX
         #
         # Flux and source storage
-        self.bankedBcFlux = np.zeros((self.nG, 3, self.sNords))
-        # initial flux guess
-        iguess = kwargs.pop('iFlux', np.ones((self.nG, 3, self.sNords)))
-        #
-        # Ord flux vector: 0 is cell centered, 1 is left, 2 is right node
-        self.ordFlux = iguess
-        self.totOrdFlux = iguess
+        self.setEleScFlux(fluxStor[0])
+        self.setEleTotFlux(fluxStor[1])
         #
         # Scattering Source term(s)
-        self.qin = np.zeros((self.nG, 3, self.sNords))  # init scatter/fission source
-        self.previousQin = np.ones((self.nG, 3, self.sNords))  # init scatter/fission source
+        self.qin = np.zeros((self.nG, 3, self.sNords))         # init scatter/fission source
+        self.previousQin = np.ones((self.nG, 3, self.sNords))  # required for over relaxation
         #
-        # optional volumetric source (none by default, fission or user-set possible)
-        #self.S = kwargs.pop('source', np.zeros((self.nG, 3, self.sNords)))
+        # Volumetric source
         self.S = source
         self.multiplying = False
         if type(self.S) is str:
@@ -308,29 +304,23 @@ class InteriorElement(object):
             else:
                 pass
 
+    def setEleScFlux(self, scFluxField):
+        """
+        Storage for scattered fluxs
+        node scattered flux vector is a [ngrp, nord, nNodes] array
+        """
+        self.nodeScFlux = scFluxField[:, :, self.nodeIDs]  # scatteredFlux
+        self.centScFlux = np.average(self.nodeScFlux, axis=2)
+
+    def setEleTotFlux(self, totFluxField):
+        """
+        Storage for total flux (sum of all scattered fluxes)
+        """
+        self.nodeTotFlux = totFluxField[:, :, self.nodeIDs]
+        self.centTotFlux = np.average(self.nodeTotFlux, axis=2)
+
     def _computeDeltaX(self):
         self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
-
-    def _computeCentroidFlux(self):
-        """
-        Centroid flux is required to compute scattering souce in this
-        finite element.
-        """
-        self.ordFlux[:, 0, :] = (self.ordFlux[:, 1, :] + self.ordFlux[:, 2, :]) / 2.
-        self.totOrdFlux[:, 0, :] = (self.totOrdFlux[:, 1, :] + self.totOrdFlux[:, 2, :]) / 2.
-
-    def setEleFlux(self, fluxVec, fluxType='scattered'):
-        """
-        Set all group and ord fluxes at both supports points _and_ centroid
-        in the 1D finite element.
-        """
-        if fluxVec.shape != self.ordFlux.shape:
-            sys.exit("FATALITY: flux vec shape mismatch when setting FE flux")
-        if fluxType is 'scattered':
-            self.ordFlux = fluxVec
-        elif fluxType is 'total':
-            self.totOrdFlux = fluxVec
-        self._computeCentroidFlux()
 
     def getElemMatrix(self, g, totalXs):
         """
@@ -359,10 +349,12 @@ class InteriorElement(object):
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
-        self.totOrdFlux = np.zeros((self.nG, 3, self.sNords))
+        self.centTotFlux *= 0
+        self.nodeTotFlux *= 0
 
     def resetOrdFlux(self):
-        self.ordFlux = np.zeros((self.nG, 3, self.sNords))
+        self.centScFlux *= 0
+        self.nodeScFlux *= 0
 
     def sweepOrd(self, skernel, chiNuFission, keff=1.0, depth=0, overRlx=1.0):
         """
@@ -400,10 +392,32 @@ class InteriorElement(object):
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.ordFlux[:, 0, :].T)
+        b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
         ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
         weights[0][:] = (2 * lw + 1) * ggprimeInScatter
         return np.sum(weights.T * self.legArray, axis=0)
+
+    def _computeFissionSource(self, g, chiNuFission, keff):
+        """
+        Compute the withen group fission source.
+        chiNuFission[g] is a row vector corresponding to all g'
+        """
+        if self.multiplying:
+            return (1 / keff / 8.0 / (1.0)) * \
+                np.sum(chiNuFission[g] * self._evalCentTotAngleInt(g))
+        else:
+            # need fixed source from user input
+            print("Fission source requested for Non multiplying medium.  FATALITY")
+            sys.exit()
+
+    def _evalCentTotAngleInt(self, g):
+        """
+        group scalar flux evaluator
+        scalar_flux_g = (1/2) * sum_n(w_n * flux_n)
+        n is the ordinate iterate
+        """
+        scalarFlux = np.sum(self.wN * self.centTotFlux[g, :])
+        return 0.5 * scalarFlux
 
 
 class BoundaryElement(object):
@@ -438,25 +452,42 @@ class BoundaryElement(object):
         self.computeOutNormal()
         self.computeInOrds()
 
-    def applyBC(self, RHS):
+    def applyBC2RHS(self, RHS, depth):
         if self.bcData == 'vac':
             return self.vacBC(RHS)
+        elif self.bcData == 'ref':
+            return self.refBC(RHS)
         elif type(self.bcData) is np.ndarray:
-            if self.bcData.shape == self.parent.totOrdFlux.shape:
+            if self.bcData.shape != self.parent.centTotFlux.shape:
+                print("WARNING: BC flux shape mismatch.")
+            if depth == 0:
                 return self.diricletBC(RHS)
             else:
-                print("WARNING: flux shape mis-match in BC assignment.")
+                return self.vacBC(RHS)
         else:
             print("WARNING: BC assignment failed.  Assuming free boundary.")
         return RHS
 
+    def applyBC2A(self, A, depth):
+        """
+        TODO: finish bc assignment to A
+        """
+        if self.bcData == 'vac':
+            return self.vacBC2A(A)
+        elif self.bcData == 'ref':
+            pass
+        elif type(self.bcData) is np.ndarray:
+            if depth == 0:
+                return self.fixedBC2A(A)
+            else:
+                return self.vacBC(A)
+
     def computeOutNormal(self):
         # obtain node(s) that are common between parent ele and boundary.
         commonNodeV = np.intersect1d(self.parent.nodeVs, self.nodeVs)
+        self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
         # obtain odd man out node
         lonelyNodeV = np.setdiff1d(self.parent.nodeVs, self.nodeVs)
-        # In 1D the outward normal vec is either -1 or 1
-        # Outward normal must be (exteterior_vp - interior_vp) / |ext_vp - int_vp|
         # In 2D and 3D we must find orthogonal line to surface/line
         self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)
 
@@ -468,6 +499,26 @@ class BoundaryElement(object):
         # cosines works fine.
         faceDot = self.parent.sNmu * self.outwardNormal
         self.inOs = np.where(faceDot < 0)
+        self.outOs = np.where(faceDot >= 0)
+
+    def vacBC2A(self, A):
+        """
+        Vaccume boundary only applied to inward ordinates at boundary.
+        This manifests itself as a row in the A matrix being 0 everywhre but
+        at the ordinaties facing inwards at the boundary node.
+        """
+        # system A is structured as:
+        # [group, ordinate, n, n], where n is number of nodes in the problem
+        for o in range(self.parent.sNords):
+            if o in self.inOs:
+                A[:, o, self.nodeIDs, :] = 0.
+                A[:, o, self.nodeIDs, self.nodeIDs] = 1.
+        return A
+
+    def fixedBC2A(self, A):
+        A[:, :, self.nodeIDs, :] = 0.
+        A[:, :, self.nodeIDs, self.nodeIDs] = 1.
+        return A
 
     def vacBC(self, RHS):
         """
@@ -477,6 +528,14 @@ class BoundaryElement(object):
         RHS[:, self.inOs, self.nodeIDs] = 0
         return RHS
 
+    def refBC(self, RHS):
+        """
+        Apply reflected flux dirichletBC.  Take banked fluxes on the outer surface
+        and add to the RHS.
+        """
+        RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
+        return RHS
+
     def diricletBC(self, RHS):
         """
         Fixed flux bc.
@@ -484,10 +543,20 @@ class BoundaryElement(object):
         RHS[:, :, self.nodeIDs] = self.bcData
         return RHS
 
-    def refBC(self, RHS):
-        # bank outward ordinate fluxes in parent cell for use in next
-        # source iteration.
-        return RHS
+    def postSweepRefBC(self, RHS):
+        """
+        Bank outward ordinate fluxes in parent cell for use in next
+        source iteration.
+        Perform this action after each spacial flux solve is complete.
+        """
+        self.bankedRefFlux = np.zeros(self.parent.nodeScFlux.shape)
+        for iDir in self.inOs[0]:
+            # get negative mu in iDir
+            negDir = -1 * self.parent.sNmu[iDir]
+            outDir = np.where(np.round(negDir, 6) == np.round(self.parent.sNmu, 6))
+            # only look at nodes which lie on boundary
+            self.bankedRefFlux[:, iDir, self.internalBCnodeIDs] = \
+                self.parent.nodeScFlux[:, outDir[0][0], self.internalBCnodeIDs]
 
 
 if __name__ == "__main__":
