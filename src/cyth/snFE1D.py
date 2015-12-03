@@ -3,6 +3,7 @@ import numpy as np
 from copy import deepcopy
 # import scattSrc as scs
 import scipy.sparse as sps
+import scipy.sparse.linalg as spl
 import sys
 from utils.ordReader import gaussLegQuadSet
 from utils.ordReader import createLegArray
@@ -36,6 +37,7 @@ class SnFe1D(object):
         gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
         self.superMesh = superMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords)    # build the mesh
         self.depth = 0  # scattering source iteration depth
+        self.keff = 1
         self.buildTransOp()
         self.buildRHS()
         self.applyBCs()
@@ -49,6 +51,7 @@ class SnFe1D(object):
         """
         self.superMesh.scatter(self.depth, self.keff)
         self.superMesh.buildSysRHS()
+        self.superMesh.applyBCs(self.depth)
         self.depth += 1
 
     def buildTransOp(self):
@@ -72,8 +75,10 @@ class SnFe1D(object):
     def solveFlux(self):
         """
         Solve Ax=b.
+        Returns flux norm
         """
-        self.superMesh.sweepFlux()
+        norm, resid = self.superMesh.sweepFlux()
+        return norm, resid
 
     def writeFlux(self):
         """
@@ -117,6 +122,7 @@ class superMesh(object):
             region.scatterSrc(depth, keff)
 
     def buildSysRHS(self):
+        self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # reset source vector
         for regionID, region in self.regions.iteritems():
             for g in range(self.nG):
                 for o in range(self.sNords):
@@ -129,7 +135,8 @@ class superMesh(object):
                 self.sysA[g, o] = self.constructA(g, o)
 
     def constructA(self, g, o):
-        A = sps.eye(self.nNodes, format='dok')
+        A = sps.eye(self.nNodes, format='csr')
+        A = sps.dok_matrix(A)
         for regionID, region in self.regions.iteritems():
             A = region.buildRegionA(A, g, o)
         return A
@@ -139,11 +146,17 @@ class superMesh(object):
         For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
         """
+        innerResid = 0
         for g in range(self.nG):
             for o in range(self.sNords):
-                self.scFluxField[g, o] = \
-                    sps.linalg.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
+                self.scFluxField[g, o], Aresid = \
+                    spl.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
+                innerResid += Aresid
         self.totFluxField += self.scFluxField
+        for regionID, region in self.regions.iteritems():
+            fluxStor = (self.scFluxField, self.totFluxField)
+            region.updateEleFluxes(fluxStor)
+        return np.linalg.norm(self.scFluxField), innerResid
 
     def applyBCs(self, depth):
         for regionID, region in self.regions.iteritems():
@@ -212,7 +225,10 @@ class regionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
             for nodeID, sysVal in zip(nodeIDs, sysVals):
-                A[nodeID] = sysVal
+                # add values to A
+                # TODO: We have to rebuild A for the first 2 scatter iters :(
+                # due to bcs changing slightly between the 0th and 1st iter
+                A[nodeID] += sysVal
         return A
 
     def buildRegionRHS(self, RHS, g, o):
@@ -224,8 +240,10 @@ class regionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, RHSvals = element.getRHS(g, o)
             for nodeID, RHSval in zip(nodeIDs, RHSvals):
-                #RHS[g][o][nodeID] = RHSval
-                RHS[g, o, nodeID] = RHSval
+                #TODO: Zero-out RHS between outer iters. rebuild it every scatter
+                # iteration
+                # RHS[g, o, nodeID] = RHSval
+                RHS[g, o, nodeID] += RHSval
         return RHS
 
     def setBCs(self, A, RHS, depth):
@@ -249,6 +267,10 @@ class regionMesh(object):
         """
         for elementID, element in self.elements.iteritems():
             element.sweepOrd(self.skernel, self.chiNuFission, keff, depth)
+
+    def updateEleFluxes(self, fluxStor):
+        for elementID, element in self.elements.iteritems():
+            element.updateFluxes(fluxStor)
 
 
 class InteriorElement(object):
@@ -294,14 +316,18 @@ class InteriorElement(object):
             if self.S == 'fission':
                 self.multiplying = True
             else:
-                self.S = np.zeros((self.nG, 3, self.sNords))
+                self.S = np.zeros((self.nG, self.sNords))
         elif self.S is None:
-            self.S = np.zeros((self.nG, 3, self.sNords))
+            self.S = np.zeros((self.nG, self.sNords))
         elif type(self.S) is np.ndarray:
-            if self.S.shape != (self.nG, 3, self.sNords):
+            if self.S.shape != (self.nG, self.sNords):
                 sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, 3, sNords).")
             else:
                 pass
+
+    def updateFluxes(self, fluxStor):
+        self.setEleScFlux(fluxStor[0])
+        self.setEleTotFlux(fluxStor[1])
 
     def setEleScFlux(self, scFluxField):
         """
@@ -471,6 +497,10 @@ class BoundaryElement(object):
         """
         TODO: finish bc assignment to A
         """
+        if depth >= 2:
+            # do nothing after 2nd scattering iteration. A does not change past
+            # this point
+            return A
         if self.bcData == 'vac':
             return self.vacBC2A(A)
         elif self.bcData == 'ref':
@@ -479,7 +509,7 @@ class BoundaryElement(object):
             if depth == 0:
                 return self.fixedBC2A(A)
             else:
-                return self.vacBC(A)
+                return self.vacBC2A(A)
 
     def computeOutNormal(self):
         # obtain node(s) that are common between parent ele and boundary.
@@ -516,6 +546,11 @@ class BoundaryElement(object):
         return A
 
     def fixedBC2A(self, A):
+        """
+        Since the flux is _specified_ for the bc nodes (atleast on scatter iter 0)
+        for the boundary node in question; zero out its row in the A matrix everywhere
+        but at the diagonal.  We are after 1 * flux_o_g = specified_flux_o_g
+        """
         for o in range(self.parent.sNords):
             for g in range(self.parent.nG):
                 A[g, o][self.nodeIDs, :] = 0.
