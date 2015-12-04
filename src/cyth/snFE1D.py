@@ -50,8 +50,10 @@ class SnFe1D(object):
                 element.scatter()
         """
         self.superMesh.scatter(self.depth, self.keff)
+        if self.depth == 1:
+            self.buildTransOp()
         self.superMesh.buildSysRHS()
-        self.superMesh.applyBCs(self.depth)
+        self.applyBCs()
         self.depth += 1
 
     def buildTransOp(self):
@@ -135,7 +137,7 @@ class superMesh(object):
                 self.sysA[g, o] = self.constructA(g, o)
 
     def constructA(self, g, o):
-        A = sps.eye(self.nNodes, format='csr')
+        A = sps.eye(self.nNodes, format='csr') * 0.
         A = sps.dok_matrix(A)
         for regionID, region in self.regions.iteritems():
             A = region.buildRegionA(A, g, o)
@@ -362,7 +364,7 @@ class InteriorElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
         feI = np.array([[1, -1], [-1, 1]])
-        elemMatrix = (self.sNmu[o] / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
+        elemMatrix = (np.abs(self.sNmu[o]) / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
