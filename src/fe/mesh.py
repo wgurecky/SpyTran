@@ -23,7 +23,8 @@ class SuperMesh(object):
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = RegionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
-                                                    bcDict, srcDict.pop(gmshRegion['material'], None))
+                                                    bcDict, srcDict.pop(gmshRegion['material'], None),
+                                                    nGroups=self.nG, sNords=self.sNords)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
                 pass
@@ -42,11 +43,20 @@ class SuperMesh(object):
                 for o in range(self.sNords):
                     self.sysRHS = region.buildRegionRHS(self.sysRHS, g, o)
 
-    def buildSysMatrix(self):
+    def buildSysMatrix(self, depth):
         self.sysA = np.empty((self.nG, self.sNords), dtype=sps.dok.dok_matrix)
+        self.sysP = np.empty((self.nG, self.sNords), dtype=object)
         for g in range(self.nG):
             for o in range(self.sNords):
                 self.sysA[g, o] = self.constructA(g, o)
+                if depth <= 1:
+                    self.sysA[g, o] = sps.csc_matrix(self.sysA[g, o])
+                    self.computePrecon(g, o)
+
+    def computePrecon(self, g, o):
+        #self.sysP[g, o] = spl.inv(self.sysA[g, o] * sps.eye(self.nNodes))
+        M_x = lambda x: spl.spsolve(self.sysA[g, o] * sps.eye(self.nNodes), x)
+        self.sysP[g, o] = spl.LinearOperator((self.nNodes, self.nNodes), M_x)
 
     def constructA(self, g, o):
         A = sps.dok_matrix((self.nNodes, self.nNodes))
@@ -59,18 +69,20 @@ class SuperMesh(object):
         For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
         """
-        innerResid = 0
+        innerResid, Aresid = 0, 0
         for g in range(self.nG):
             for o in range(self.sNords):
                 self.scFluxField[g, o], Aresid = \
-                    spl.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=tolr)
+                    spl.gmres(self.sysA[g, o], self.sysRHS[g, o], tol=tolr, M=self.sysP[g, o])
+                #self.scFluxField[g, o] = \
+                #    spl.spsolve(self.sysA[g, o], self.sysRHS[g, o])
                 if Aresid > 0:
                     print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(Aresid))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
             fluxStor = (self.scFluxField, self.totFluxField)
             region.updateEleFluxes(fluxStor)
-        return np.linalg.norm(self.scFluxField), innerResid
+        return np.linalg.norm(self.scFluxField) / np.linalg.norm(self.totFluxField), innerResid
 
     def applyBCs(self, depth):
         for regionID, region in self.regions.iteritems():

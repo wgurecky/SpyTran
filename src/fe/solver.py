@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import utils.hdf5dump as h5d
 from utils.ordReader import gaussLegQuadSet
 from utils.ordReader import createLegArray
@@ -38,6 +39,7 @@ class SnFe1D(object):
         self.buildTransOp()
         self.buildRHS()
         self.applyBCs()
+        self.timeScatter, self.timeLinSolver = 0, 0
 
     def scatterSource(self):
         """
@@ -46,6 +48,7 @@ class SnFe1D(object):
             for elements in region:
                 element.scatter()
         """
+        timeStart = time.time()
         self.superMesh.scatter(self.depth, self.keff)
         if self.depth == 1:
             # rebuild transport Op if scattering depth == 1
@@ -53,6 +56,7 @@ class SnFe1D(object):
         self.buildRHS()  # build RHS after scatter
         self.applyBCs()  # apply BCs after scatter
         self.depth += 1
+        self.timeScatter = (time.time() - timeStart)
 
     def buildTransOp(self):
         """
@@ -61,7 +65,7 @@ class SnFe1D(object):
         not in energy or angle.  The scattering souce iteration takes care of energy
         and angle redistribution.
         """
-        self.superMesh.buildSysMatrix()
+        self.superMesh.buildSysMatrix(self.depth)
 
     def buildRHS(self):
         self.superMesh.buildSysRHS()
@@ -69,13 +73,15 @@ class SnFe1D(object):
     def applyBCs(self):
         self.superMesh.applyBCs(self.depth)
 
-    def solveFlux(self, tol=1.0e-6):
+    def solveFlux(self, tol=1.0e-5):
         """
         Solve Ax=b.
         Returns flux norm
         """
+        timeStart = time.time()
         self.norm, resid = self.superMesh.sweepFlux(tol)
-        return self.norm, resid
+        self.timeLinSolver = (time.time() - timeStart)
+        return self.norm, (self.timeScatter, self.timeLinSolver)
 
     def writeData(self, outFileName='1Dfeout.h5'):
         """

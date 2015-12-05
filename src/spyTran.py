@@ -55,10 +55,22 @@ def nonMultiplying(slv):
         5. Add ith scattered flux to 'tot' flux (tot flux is sum of all scattered fluxes)
         6. Retun to 2.  Repeat untill scattered flux is stationary (measured by L2 norm)
     """
+    totScTime, totLsTime = 0, 0
+    print("====================================================================")
+    print(" ||ScFlux||/||TotFlux|| -- Lin Solve Time [s] -- Scattering Time [s]")
+    print("====================================================================")
     for i in range(0, 50):
         slv.scatterSource()
-        norms, resid = slv.solveFlux()
-        print(norms)
+        norms, times = slv.solveFlux()
+        totScTime += times[0]
+        totLsTime += times[1]
+        print("       " + "{:.4e}".format(norms) + "              " +
+              "{:.2e}".format(times[1]) + "           " +
+              "{:.2e}".format(times[0]))
+    print("====================================================================")
+    print("    TOTAL SOLVE TIME [S]       " + "{:.2e}".format(totLsTime) + "           " +
+          "{:.2e}".format(totScTime))
+    print("====================================================================")
 
 
 def multiplying():
@@ -84,7 +96,7 @@ def multiplying():
 
 if __name__ == "__main__":
     # Solver settings
-    sN, nG = 2, 10
+    sN, nG = 8, 10
     # Geometry
     geoFile = 'utils/testline2.geo'
     # Materials

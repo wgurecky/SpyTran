@@ -46,7 +46,7 @@ class InteriorElement(object):
         self.S = source
         self.multiplying = False
         if type(self.S) is str:
-            if self.S == 'fission':
+            if self.S is 'fission':
                 self.multiplying = True
             else:
                 self.S = np.zeros((self.nG, self.sNords))
@@ -104,7 +104,7 @@ class InteriorElement(object):
         Produces right hand side of neutron balance for this element.
         """
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
-        elemRHS = 0.5 * np.array([self.qin[g, o], self.qin[g, o]])
+        elemRHS = 2.0 * self.deltaX * np.array([self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
@@ -212,9 +212,9 @@ class BoundaryElement(object):
         self.computeInOrds()
 
     def applyBC2RHS(self, RHS, depth):
-        if self.bcData == 'vac':
+        if self.bcData is 'vac':
             return self.vacBC(RHS)
-        elif self.bcData == 'ref':
+        elif self.bcData is 'ref':
             return self.refBC(RHS)
         elif type(self.bcData) is np.ndarray:
             if self.bcData.shape != self.parent.centTotFlux.shape:
@@ -235,9 +235,9 @@ class BoundaryElement(object):
             # do nothing after 2nd scattering iteration. A does not change past
             # this point
             return A
-        if self.bcData == 'vac':
+        if self.bcData is 'vac':
             return self.vacBC2A(A)
-        elif self.bcData == 'ref':
+        elif self.bcData is 'ref':
             pass
         elif type(self.bcData) is np.ndarray:
             if depth == 0:
@@ -273,7 +273,7 @@ class BoundaryElement(object):
         # system A is structured as:
         # [group, ordinate, n, n], where n is number of nodes in the problem
         for o in range(self.parent.sNords):
-            if o in self.inOs:
+            if o in self.inOs[0]:
                 for g in range(self.parent.nG):
                     A[g, o][self.nodeIDs, :] = 0.
                     A[g, o][self.nodeIDs, self.nodeIDs] = 1.

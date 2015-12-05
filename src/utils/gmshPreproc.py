@@ -139,7 +139,8 @@ class gmshMesh(object):
             for j, line in enumerate(self.inpFL[elsetDefStart + 1: elsetDefEnd]):
                 words = line.split()
                 #words[0] = str(j + 1) + ', '
-                elements.append([int(x.strip(', ')) - 1 for x in words])
+                #elements.append([int(x.strip(', ')) - 1 for x in words])
+                elements += [int(x.strip(', ')) - 1 for x in words]
             self.regions[regionID] = {}
             self.regions[regionID]['elementIDs'] = np.array(elements).flatten()
             self.regions[regionID]['type'] = self.regionInfo[regionID]['type']
@@ -165,8 +166,6 @@ class gmshMesh(object):
                 self.regions[regionID]['nodeIDs'] = np.unique(self.regions[regionID]['elements'][:, 1:].flatten())
             #self.regions[regionID]['nodes'] = np.take(self.nodes, self.regions[regionID]['nodeIDs'] - 1, axis=0)
             self.regions[regionID]['nodes'] = self.nodes
-            #self.regions[regionID]['nodes'] = np.vstack((np.zeros(self.regions[regionID]['nodes'].shape[1]),
-            #                                            self.regions[regionID]['nodes']))
 
     def markRegionBCs(self):
         """
