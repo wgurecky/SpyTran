@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from cyth import snFE1D as fe1D
+from fe import solver as fe1D
 import numpy as np
 
 # Load xs database
@@ -101,3 +101,4 @@ if __name__ == "__main__":
                'mat_2': None}
     slv = initSolve(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
     nonMultiplying(slv)
+    slv.writeData()

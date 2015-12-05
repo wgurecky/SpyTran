@@ -1,0 +1,93 @@
+import numpy as np
+import utils.hdf5dump as h5d
+from utils.ordReader import gaussLegQuadSet
+from utils.ordReader import createLegArray
+from utils.gmshPreproc import gmsh1DMesh
+from mesh import SuperMesh
+np.set_printoptions(linewidth=200)  # set print to screen opts
+
+
+class SnFe1D(object):
+    """
+    High level solver tasks reside here. e.g:
+        - Make transport operator (matirx A)
+        - Make RHS vecotr (vector b)
+        - solve flux (solve Ax=b)
+        - Update scattering souce in each element
+    Methods can be called when necissary by a controller script.
+    """
+    def __init__(self, geoFile, materialDict, bcDict, srcDict, nGroups=10,
+                 legOrder=8, sNords=2):
+        """
+        Matierial dict in:
+            {'material_str': material_class_instance, ...}
+        format
+        """
+        quadSet = gaussLegQuadSet(sNords)                       # quadrature set
+        self.sNords = sNords                                    # number of discrete dirs tracked
+        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
+        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
+        self.nG = nGroups                                       # number of energy groups
+        self.legArray = createLegArray(self.sNmu, self.maxLegOrder)  # Stores leg polys
+        #
+        gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
+        self.nodes = gmshMesh.nodes
+        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords)    # build the mesh
+        self.depth = 0  # scattering source iteration depth
+        self.keff = 1
+        self.buildTransOp()
+        self.buildRHS()
+        self.applyBCs()
+
+    def scatterSource(self):
+        """
+        Perform scattering souce iteration for all nodes in the mesh:
+        for region in regions:
+            for elements in region:
+                element.scatter()
+        """
+        self.superMesh.scatter(self.depth, self.keff)
+        if self.depth == 1:
+            self.buildTransOp()
+        self.superMesh.buildSysRHS()
+        self.applyBCs()
+        self.depth += 1
+
+    def buildTransOp(self):
+        """
+        Construct transport operator, A.
+        Note A is not the complete transport operator, it only moves neutrons through space,
+        not in energy or angle.  The scattering souce iteration takes care of energy
+        and angle redistribution.
+        """
+        self.superMesh.buildSysMatrix()
+
+    def buildRHS(self):
+        self.superMesh.buildSysRHS()
+
+    def applyBCs(self):
+        self.superMesh.applyBCs(self.depth)
+
+    def solveFlux(self):
+        """
+        Solve Ax=b.
+        Returns flux norm
+        """
+        self.norm, resid = self.superMesh.sweepFlux()
+        return self.norm, resid
+
+    def writeData(self, outFileName='1Dfeout.h5'):
+        """
+        Write solution state to hdf5 file.
+            - keff (if applicable)
+            - mesh
+                - elements (nodes in element)
+                - node positions
+            - flux field
+        """
+        # write [[nodeID, nodeX, nodeY, nodeZ],...] vector  (this is gmshMesh.nodes)
+        # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
+        # write eigenvalue
+        h5data = {'nodes': self.nodes, 'ordFluxes': self.superMesh.totFluxField,
+                  'keff': self.keff, 'fluxNorm': self.norm}
+        h5d.writeToHdf5(h5data, outFileName)
