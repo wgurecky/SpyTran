@@ -95,7 +95,8 @@ class InteriorElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
         feI = np.array([[1, -1], [-1, 1]])
-        elemMatrix = (np.abs(self.sNmu[o]) / self.deltaX) * feI + (totalXs[g] * 2. / self.deltaX) * feI
+        feI2 = np.array([[1, 0], [0, 1]])
+        elemMatrix = (np.abs(self.sNmu[o]) / self.deltaX) * feI + (2.0 * totalXs[g] * self.deltaX) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):

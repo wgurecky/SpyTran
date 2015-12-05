@@ -49,13 +49,12 @@ class SuperMesh(object):
                 self.sysA[g, o] = self.constructA(g, o)
 
     def constructA(self, g, o):
-        A = sps.eye(self.nNodes, format='csr') * 0.
-        A = sps.dok_matrix(A)
+        A = sps.dok_matrix((self.nNodes, self.nNodes))
         for regionID, region in self.regions.iteritems():
             A = region.buildRegionA(A, g, o)
         return A
 
-    def sweepFlux(self):
+    def sweepFlux(self, tolr):
         """
         For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
@@ -64,8 +63,9 @@ class SuperMesh(object):
         for g in range(self.nG):
             for o in range(self.sNords):
                 self.scFluxField[g, o], Aresid = \
-                    spl.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=1e-5)
-                innerResid += Aresid
+                    spl.gmres(sps.csc_matrix(self.sysA[g, o]), self.sysRHS[g, o], tol=tolr)
+                if Aresid > 0:
+                    print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(Aresid))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
             fluxStor = (self.scFluxField, self.totFluxField)
@@ -139,9 +139,6 @@ class RegionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
             for nodeID, sysVal in zip(nodeIDs, sysVals):
-                # add values to A
-                # TODO: We have to rebuild A for the first 2 scatter iters :(
-                # due to bcs changing slightly between the 0th and 1st iter
                 A[nodeID] += sysVal
         return A
 
@@ -154,9 +151,7 @@ class RegionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, RHSvals = element.getRHS(g, o)
             for nodeID, RHSval in zip(nodeIDs, RHSvals):
-                #TODO: Zero-out RHS between outer iters. rebuild it every scatter
-                # iteration
-                # RHS[g, o, nodeID] = RHSval
+                #RHS[g, o, nodeID] = RHSval
                 RHS[g, o, nodeID] += RHSval
         return RHS
 

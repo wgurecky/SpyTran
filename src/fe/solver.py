@@ -48,9 +48,10 @@ class SnFe1D(object):
         """
         self.superMesh.scatter(self.depth, self.keff)
         if self.depth == 1:
+            # rebuild transport Op if scattering depth == 1
             self.buildTransOp()
-        self.superMesh.buildSysRHS()
-        self.applyBCs()
+        self.buildRHS()  # build RHS after scatter
+        self.applyBCs()  # apply BCs after scatter
         self.depth += 1
 
     def buildTransOp(self):
@@ -68,12 +69,12 @@ class SnFe1D(object):
     def applyBCs(self):
         self.superMesh.applyBCs(self.depth)
 
-    def solveFlux(self):
+    def solveFlux(self, tol=1.0e-6):
         """
         Solve Ax=b.
         Returns flux norm
         """
-        self.norm, resid = self.superMesh.sweepFlux()
+        self.norm, resid = self.superMesh.sweepFlux(tol)
         return self.norm, resid
 
     def writeData(self, outFileName='1Dfeout.h5'):

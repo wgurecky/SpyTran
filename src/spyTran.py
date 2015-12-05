@@ -55,7 +55,7 @@ def nonMultiplying(slv):
         5. Add ith scattered flux to 'tot' flux (tot flux is sum of all scattered fluxes)
         6. Retun to 2.  Repeat untill scattered flux is stationary (measured by L2 norm)
     """
-    for i in range(0, 5):
+    for i in range(0, 50):
         slv.scatterSource()
         norms, resid = slv.solveFlux()
         print(norms)

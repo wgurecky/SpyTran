@@ -39,9 +39,11 @@ class Fe1DOutput(object):
         """
         Plots 1D scalar flux for grp g
         """
-        plotData = np.sort(np.array([self.nodes[:, 1], self.angleIntFlux[g]]), axis=1)
+        plotData = np.array([self.nodes[:, 1], self.angleIntFlux[g]])
+        plotData = plotData[:, np.argsort(plotData[0])]
         sfp.plot1DScalarFlux(plotData[1], plotData[0], label='G'+str(g))
 
     def plotTotalFlux(self):
-        plotData = np.sort(np.array([self.nodes[:, 1], self.totFlux]), axis=1)
+        plotData = np.array([self.nodes[:, 1], self.totFlux])
+        plotData = plotData[:, np.argsort(plotData[0])]
         sfp.plot1DScalarFlux(plotData[1], plotData[0], label='tot')
