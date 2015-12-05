@@ -89,5 +89,7 @@ class SnFe1D(object):
         # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
         # write eigenvalue
         h5data = {'nodes': self.nodes, 'ordFluxes': self.superMesh.totFluxField,
-                  'keff': self.keff, 'fluxNorm': self.norm}
+                  'keff': self.keff, 'fluxNorm': self.norm,
+                  'mu': self.sNmu, 'weights': self.wN,
+                  'nGrp': self.nG, 'scrIters': self.depth}
         h5d.writeToHdf5(h5data, outFileName)

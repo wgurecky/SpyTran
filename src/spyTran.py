@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from fe import solver as fe1D
+from fe.post import Fe1DOutput as fe1Dplt
 import numpy as np
 
 # Load xs database
@@ -101,4 +102,8 @@ if __name__ == "__main__":
                'mat_2': None}
     slv = initSolve(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
     nonMultiplying(slv)
-    slv.writeData()
+    slv.writeData('1Dtestout.h5')
+    plotter = fe1Dplt('1Dtestout.h5')
+    plotter.plotScalarFlux(1)
+    plotter.plotScalarFlux(2)
+    plotter.plotScalarFlux(3)
