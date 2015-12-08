@@ -12,8 +12,8 @@ class SuperMesh(object):
     Contains mappings betwen array/matrix field representation and element class
     representation.
     """
-    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords):
-        self.nG, self.sNords = nG, sNords
+    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, wN):
+        self.nG, self.sNords, self.wN = nG, sNords, wN
         self.nNodes = int(np.max(gmshMesh.regions.values()[0]['nodes'][:, 0] + 1))
         self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
@@ -23,7 +23,7 @@ class SuperMesh(object):
         for regionID, gmshRegion in gmshMesh.regions.iteritems():
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = RegionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
-                                                    bcDict, srcDict.pop(gmshRegion['material'], None),
+                                                    bcDict, srcDict.get(gmshRegion['material'], None),
                                                     nGroups=self.nG, sNords=self.sNords)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
@@ -88,6 +88,21 @@ class SuperMesh(object):
         for regionID, region in self.regions.iteritems():
             self.sysA, self.sysRHS = region.setBCs(self.sysA, self.sysRHS, depth)
 
+    def initFlux(self, scFactor):
+        fluxStor = (self.scFluxField, (0.0 * self.totFluxField + 1.0) * scFactor)
+        for regionID, region in self.regions.iteritems():
+            region.updateEleFluxes(fluxStor)
+
+    def getFissionSrc(self):
+        fissionSrc = 0
+        for regionID, region in self.regions.iteritems():
+            fissionSrc += region.getFissionSrc()
+        return fissionSrc
+
+    def resetMeshFlux(self):
+        self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
+        self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
+
 
 class RegionMesh(object):
     def __init__(self, gmshRegion, fluxStor, material, bcDict, source, **kwargs):
@@ -101,6 +116,7 @@ class RegionMesh(object):
          ...
         ]
         """
+        self.nG = kwargs.get("nGroups")
         self.bcDict = bcDict
         self.totalXs = material.macroProp['Ntotal']
         self.skernel = material.macroProp['Nskernel']
@@ -110,7 +126,7 @@ class RegionMesh(object):
                                        np.array([material.macroProp['Nnufission']]))
             source = 'fission'
         else:
-            self.nuFission = None
+            self.nuFission = np.zeros(self.nG)
             self.chiNuFission = None
             #source = kwargs.pop("source", None)
         # Build elements in the region mesh
@@ -192,3 +208,23 @@ class RegionMesh(object):
     def updateEleFluxes(self, fluxStor):
         for elementID, element in self.elements.iteritems():
             element.updateFluxes(fluxStor)
+
+    def getFissionSrc(self):
+        fissionSrc = 0
+        for elementID, element in self.elements.iteritems():
+            for g in range(self.nG):
+                fissionSrc += self.nuFission[g] * element.deltaX * element._evalCentTotAngleInt(g)
+        #return np.dot(self.nuFission, self.getCellVols() * self.getTotScalarFlux().T)
+        return fissionSrc
+
+    #def getCellVols(self):
+    #    for elementID, element in self.elements.iteritems():
+    #    return cellVols
+    #
+    #def getTotScalarFlux(self):
+    #    """ Produces an nGroup x nNodes ndarray """
+    #    angleIntFlux = np.zeros((self.totFluxField.shape[0], self.totFluxField.shape[2]))
+    #    for g in range(self.nG):
+    #        for i in range(self.nNodes):
+    #            angleIntFlux[g, i] = 0.5 * np.sum(self.wN * self.totFluxField)
+    #    return angleIntFlux

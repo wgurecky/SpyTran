@@ -22,7 +22,7 @@ Physical Line(105) = {5};   // mat=mat_1
 Physical Line(106) = {6};   // mat=mat_2
 Physical Line(107) = {7};   // mat=mat_1
 Physical Point(10) = {1};   // bc=bc1
-Physical Point(20) = {7};   // bc=bc2
+Physical Point(20) = {8};   // bc=bc2
 Transfinite Line {1} = 20 Using Progression 1;
 Transfinite Line {2} = 40 Using Progression 1;
 Transfinite Line {3} = 20 Using Progression 1;

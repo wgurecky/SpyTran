@@ -54,7 +54,7 @@ class InteriorElement(object):
             self.S = np.zeros((self.nG, self.sNords))
         elif type(self.S) is np.ndarray:
             if self.S.shape != (self.nG, self.sNords):
-                sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, 3, sNords).")
+                sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, sNords).")
             else:
                 pass
 

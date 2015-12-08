@@ -33,7 +33,7 @@ class SnFe1D(object):
         #
         gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
         self.nodes = gmshMesh.nodes
-        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords)    # build the mesh
+        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords, self.wN)    # build the mesh
         self.depth = 0  # scattering source iteration depth
         self.keff = 1
         self.buildTransOp()
@@ -82,6 +82,39 @@ class SnFe1D(object):
         self.norm, resid = self.superMesh.sweepFlux(tol)
         self.timeLinSolver = (time.time() - timeStart)
         return self.norm, (self.timeScatter, self.timeLinSolver)
+
+    def _initkEig(self, sFactor=1.0):
+        if not hasattr(self, 'fissionSrc'):
+            print("Init Keff: " + str(self.keff))
+            self.fissionSrc = []
+            self.superMesh.initFlux(sFactor)  # scaling factor
+            self.fissionSrc.append(self.superMesh.getFissionSrc())
+
+    def kEig(self, rTol=1e-6, kTol=1e-3, finalIter=False, verbosity=1):
+        """
+        Perform a single k-eigen update.  If k is stationary, return true for kconverged
+        """
+        self._initkEig()
+        for i in range(160):
+            # perform scattering src iterations untill flux tol falls below spcified rtol
+            self.scatterSource()
+            self.solveFlux()
+            if verbosity == 1 and i % 5 == 0:
+                print("Scatter iteration " + "{0: <4}".format(i) + "  resid norm= " + "{:.4e}".format(self.norm))
+            if self.norm <= rTol:
+                break
+        self.depth = 0
+        # update keff
+        self.fissionSrc.append(self.superMesh.getFissionSrc())
+        kold = self.keff
+        self.keff = self.keff * (self.fissionSrc[-1] / self.fissionSrc[-2])
+        if np.abs(kold - self.keff) < kTol:
+            kconv = True
+        else:
+            if finalIter is False:
+                self.superMesh.resetMeshFlux()
+            kconv = False
+        return self.keff, kconv, self.norm
 
     def writeData(self, outFileName='1Dfeout.h5'):
         """
