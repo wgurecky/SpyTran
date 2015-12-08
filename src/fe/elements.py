@@ -79,6 +79,7 @@ class InteriorElement(object):
 
     def _computeDeltaX(self):
         self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
+        self.sortedNodeIndex = np.argsort(self.nodeVs)
 
     def getElemMatrix(self, g, o, totalXs):
         """
@@ -94,9 +95,15 @@ class InteriorElement(object):
         """
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
-        feI = np.array([[1, -1], [-1, 1]])
-        feI2 = np.array([[1, 0], [0, 1]])
-        elemMatrix = (np.abs(self.sNmu[o]) / self.deltaX) * feI + (2.0 * totalXs[g] * self.deltaX) * feI2
+        if self.nodeVs[0] < self.nodeVs[1]:
+            #TODO: in 2 and 3D we will need to use the sortedNodeIndex to get sign on the grad
+            # term correct! but in 1D, just comparing the node X locations is
+            # good enough.
+            feI = np.array([[-1, 1], [-1, 1]])
+        else:
+            feI = np.array([[1, -1], [1, -1]])
+        feI2 = np.array([[1, 0.5], [0.5, 1]])
+        elemMatrix = (0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -104,7 +111,7 @@ class InteriorElement(object):
         Produces right hand side of neutron balance for this element.
         """
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
-        elemRHS = 2.0 * self.deltaX * np.array([self.qin[g, o], self.qin[g, o]])
+        elemRHS = 0.5 * self.deltaX * np.array([self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
@@ -128,14 +135,16 @@ class InteriorElement(object):
         weights = np.array([np.zeros(self.maxLegOrder + 1)])
         lw = np.arange(self.maxLegOrder + 1)
         if depth >= 1:
-            if depth >= 2:
-                for g in range(self.nG):
-                    self.qin[g, :] = overRlx * (self.evalScatterSourceImp(g, skernel, weights, lw) - self.previousQin[g, :]) + self.previousQin[g, :]
-                self.previousQin = self.qin
-            else:
+            #if depth >= 2:
+            #    for g in range(self.nG):
+            #        self.qin[g, :] = overRlx * (self.evalScatterSourceImp(g, skernel, weights, lw) - self.previousQin[g, :]) + self.previousQin[g, :]
+            #    self.previousQin = self.qin
+            #else:
+            #    for g in range(self.nG):
+            #        self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
+            #    self.previousQin = self.qin
                 for g in range(self.nG):
                     self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
-                self.previousQin = self.qin
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
                 # compute gth group fission source
@@ -220,7 +229,7 @@ class BoundaryElement(object):
             if self.bcData.shape != self.parent.centTotFlux.shape:
                 print("WARNING: BC flux shape mismatch.")
             if depth == 0:
-                return self.diricletBC(RHS)
+                return self.dirichletBC(RHS)
             else:
                 return self.vacBC(RHS)
         else:
@@ -307,7 +316,7 @@ class BoundaryElement(object):
         RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
         return RHS
 
-    def diricletBC(self, RHS):
+    def dirichletBC(self, RHS):
         """
         Fixed flux bc.
         """

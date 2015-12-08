@@ -73,7 +73,7 @@ class SnFe1D(object):
     def applyBCs(self):
         self.superMesh.applyBCs(self.depth)
 
-    def solveFlux(self, tol=1.0e-5):
+    def solveFlux(self, tol=1.0e-6):
         """
         Solve Ax=b.
         Returns flux norm

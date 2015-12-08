@@ -39,7 +39,7 @@ def initSolve(geoFile, materialDict, bcDict, srcDict, **kwargs):
     return solver
 
 
-def nonMultiplying(slv):
+def nonMultiplying(slv, residTol=0.5e-5):
     """
     Pseudo Code non mult solve:
         1. Init problem (see initSolve)
@@ -59,7 +59,7 @@ def nonMultiplying(slv):
     print("====================================================================")
     print(" ||ScFlux||/||TotFlux|| -- Lin Solve Time [s] -- Scattering Time [s]")
     print("====================================================================")
-    for i in range(0, 50):
+    for i in range(0, 180):
         slv.scatterSource()
         norms, times = slv.solveFlux()
         totScTime += times[0]
@@ -67,6 +67,8 @@ def nonMultiplying(slv):
         print("       " + "{:.4e}".format(norms) + "              " +
               "{:.2e}".format(times[1]) + "           " +
               "{:.2e}".format(times[0]))
+        if norms < residTol:
+            break
     print("====================================================================")
     print("    TOTAL SOLVE TIME [S]       " + "{:.2e}".format(totLsTime) + "           " +
           "{:.2e}".format(totScTime))
@@ -96,17 +98,19 @@ def multiplying():
 
 if __name__ == "__main__":
     # Solver settings
-    sN, nG = 8, 10
+    sN, nG = 16, 10
     # Geometry
     geoFile = 'utils/testline2.geo'
     # Materials
-    material1 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
-    material2 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 1.e5 / 1e24})
-    materialDict = {'mat_1': material1,
-                    'mat_2': material2}
+    #material1 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24})
+    #material2 = mx.mixedMat({'h1': 3.35e22 / 1e24, 'o16': 1.67e22 / 1e24, 'b10': 1.e5 / 1e24})
+    attnMat = mx.mixedMat({'c12': 1.0})
+    attnMat.setDensity(2.24)
+    materialDict = {'mat_1': attnMat,
+                    'mat_2': attnMat}
     # Boundary conditions
     fixedFlux1 = np.zeros((nG, sN))
-    fixedFlux1[1, 0] = 1e10    # 1e10 flux in ord 0, grp 1
+    fixedFlux1[0, 0] = 16 * 1e6    # 1e6 flux in ord 0, grp 1
     bcDict = {'bc1': fixedFlux1,
               'bc2': 'vac'}
     # Volumetric sources
@@ -116,6 +120,13 @@ if __name__ == "__main__":
     nonMultiplying(slv)
     slv.writeData('1Dtestout.h5')
     plotter = fe1Dplt('1Dtestout.h5')
+    plotter.plotScalarFlux(0)
     plotter.plotScalarFlux(1)
     plotter.plotScalarFlux(2)
     plotter.plotScalarFlux(3)
+    plotter.plotScalarFlux(4)
+    plotter.plotScalarFlux(5)
+    plotter.plotScalarFlux(6)
+    plotter.plotScalarFlux(7)
+    plotter.plotScalarFlux(8)
+    plotter.plotScalarFlux(9)
