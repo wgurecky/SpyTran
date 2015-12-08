@@ -35,10 +35,10 @@ srcDict = {'mat_1': None,
            'mat_2': None}
 
 # Init solver
-slv = spytran.initSolve(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
+slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
 
 # Solve
-spytran.nonMultiplying(slv)
+slv.trSolve(residTol=1e-6)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot

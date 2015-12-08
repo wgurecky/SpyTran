@@ -21,6 +21,21 @@ def readOrdFile(inFile, sNords):
     return ordinateSet
 
 
+def levelSymQuadSet(sN):
+    if sN == 4:
+        mu = np.array([0.3500212, 0.8688903])
+        wN = np.array([1 / 3.])
+    elif sN == 6:
+        mu = np.array([0.2666355, 0.6815076, 0.9261808])
+        wN = np.array([0.1761263, 0.1572071])
+    else:
+        # default s8
+        mu = np.array([0.2182179, 0.5773503, 0.7867958, 0.9511897])
+        wN = np.array([0.1209877, 0.0907407, 0.0925926])
+    ordinateSet = np.array([mu, wN])
+    return ordinateSet
+
+
 def gaussLegQuadSet(sNords):
     """
     Input number of ordinates. (should be even number)

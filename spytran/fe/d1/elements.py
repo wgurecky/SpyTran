@@ -6,7 +6,7 @@ from utils.ordReader import createLegArray
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
-class InteriorElement(object):
+class d1InteriorElement(object):
     """
     Finite element 1D Sn class.
 
@@ -188,7 +188,7 @@ class InteriorElement(object):
         return 0.5 * scalarFlux
 
 
-class BoundaryElement(object):
+class d1BoundaryElement(object):
     """
     In 1D boundary conditions are specified on a node.
     Equivillent to a boundary element in 2D.

@@ -2,13 +2,15 @@ import numpy as np
 import time
 import utils.hdf5dump as h5d
 from utils.ordReader import gaussLegQuadSet
+from utils.ordReader import levelSymQuadSet
 from utils.ordReader import createLegArray
 from utils.gmshPreproc import gmsh1DMesh
+from utils.gmshPreproc import gmsh2DMesh
 from mesh import SuperMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
-class SnFe1D(object):
+class SnFeSlv(object):
     """
     High level solver tasks reside here. e.g:
         - Make transport operator (matirx A)
@@ -18,22 +20,29 @@ class SnFe1D(object):
     Methods can be called when necissary by a controller script.
     """
     def __init__(self, geoFile, materialDict, bcDict, srcDict, nGroups=10,
-                 legOrder=8, sNords=2):
+                 legOrder=8, sN=4, dim=1):
         """
         Matierial dict in:
             {'material_str': material_class_instance, ...}
         format
         """
-        quadSet = gaussLegQuadSet(sNords)                       # quadrature set
-        self.sNords = sNords                                    # number of discrete dirs tracked
+        if dim == 1:
+            quadSet = gaussLegQuadSet(sN)                      # quadrature set
+            self.sNords = sN                                   # number of discrete dirs tracked
+        elif dim == 2:
+            quadSet = levelSymQuadSet(sN)
+            self.sNords = (sN * (sN + 2) / 8) * 4
         self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.nG = nGroups                                       # number of energy groups
         self.legArray = createLegArray(self.sNmu, self.maxLegOrder)  # Stores leg polys
         #
-        gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
+        if dim == 1:
+            gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
+        elif dim == 2:
+            gmshMesh = gmsh2DMesh(geoFile=geoFile)  # Run gmsh
         self.nodes = gmshMesh.nodes
-        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, sNords, self.wN)    # build the mesh
+        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, self.sNords, self.wN)    # build the mesh
         self.depth = 0  # scattering source iteration depth
         self.keff = 1
         self.buildTransOp()

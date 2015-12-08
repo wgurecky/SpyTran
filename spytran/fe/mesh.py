@@ -1,8 +1,10 @@
 import numpy as np
 import scipy.sparse as sps
 import scipy.sparse.linalg as spl
-from elements import InteriorElement
-from elements import BoundaryElement
+from d1.elements import d1InteriorElement
+from d1.elements import d1BoundaryElement
+from d2.elements import d2InteriorElement
+from d2.elements import d2BoundaryElement
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
@@ -12,8 +14,8 @@ class SuperMesh(object):
     Contains mappings betwen array/matrix field representation and element class
     representation.
     """
-    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, wN):
-        self.nG, self.sNords, self.wN = nG, sNords, wN
+    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, wN, dim=1):
+        self.nG, self.sNords, self.wN = nG, sNords, wN   # ngropus, nords, quadrature weights
         self.nNodes = int(np.max(gmshMesh.regions.values()[0]['nodes'][:, 0] + 1))
         self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
@@ -24,7 +26,7 @@ class SuperMesh(object):
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = RegionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
                                                     bcDict, srcDict.get(gmshRegion['material'], None),
-                                                    nGroups=self.nG, sNords=self.sNords)
+                                                    nGroups=self.nG, sNords=self.sNords, dim=dim)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
                 pass
@@ -116,6 +118,7 @@ class RegionMesh(object):
          ...
         ]
         """
+        self.dim = kwargs.get("dim")
         self.nG = kwargs.get("nGroups")
         self.bcDict = bcDict
         self.totalXs = material.macroProp['Ntotal']
@@ -141,7 +144,10 @@ class RegionMesh(object):
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
             nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-            self.elements[element[0]] = InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
+            if self.dim == 1:
+                self.elements[element[0]] = d1InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
+            else:
+                self.elements[element[0]] = d2InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
 
     def linkBoundaryElements(self, gmshRegion):
         """
@@ -153,7 +159,10 @@ class RegionMesh(object):
             if type(bcElms) is dict:
                 for bcElmID, nodeIDs in bcElms.iteritems():
                     nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-                    self.belements[bcElmID] = BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
+                    if self.dim == 1:
+                        self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
+                    else:
+                        self.belements[bcElmID] = d2BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
 
     def buildRegionA(self, A, g, o):
         """

@@ -116,6 +116,8 @@ class gmshMesh(object):
             #words[0] = str(j + 1) + ', '
             try:
                 elements.append([int(x.strip(', ')) for x in words])
+                if len(elements[-1]) == 3 and self.dim == 2:
+                    elements[-1] += [-100]  # add padding to line elements
             except:
                 pass
         self.elements = np.array(elements) - 1
@@ -162,7 +164,11 @@ class gmshMesh(object):
                 self.regions[regionID]['nodeIDs'] = region['elementIDs']
             else:
                 regionElementIndexs = np.unique([np.where(self.elements[:, 0] == i) for i in region['elementIDs']])
-                self.regions[regionID]['elements'] = np.array([self.elements[row] for row in regionElementIndexs])
+                #self.regions[regionID]['elements'] = np.array([self.elements[row] for row in regionElementIndexs])
+                regionEles = np.array([self.elements[row] for row in regionElementIndexs])
+                if regionEles[-1, -1] < 0:
+                    regionEles = regionEles[:, :-1]
+                self.regions[regionID]['elements'] = regionEles
                 self.regions[regionID]['nodeIDs'] = np.unique(self.regions[regionID]['elements'][:, 1:].flatten())
             #self.regions[regionID]['nodes'] = np.take(self.nodes, self.regions[regionID]['nodeIDs'] - 1, axis=0)
             self.regions[regionID]['nodes'] = self.nodes

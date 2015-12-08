@@ -1,4 +1,5 @@
-cl = 0.2;
+Mesh.Algorithm = 1;
+cl = 0.1;
 Point(1) = {0, 0, 0, cl};
 Point(2) = {0, 1, 0, cl};
 Point(3) = {1, 1, 0, cl};
