@@ -1,8 +1,8 @@
 import numpy as np
 from copy import deepcopy
 import sys
-from utils.ordReader import gaussLegQuadSet
 from utils.ordReader import createLegArray
+from utils.ordReader import createSphrHarm
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
@@ -23,16 +23,17 @@ class d2InteriorElement(object):
         """
         #
         # Basic data needed for scattering source calcs
-        self.sNords = kwargs.pop("sNords", 2)                                    # number of discrete dirs tracked
-        quadSet = kwargs.pop("quadSet", gaussLegQuadSet(self.sNords))            # quadrature set
+        self.sNords = kwargs.pop("sNords")                                       # number of discrete dirs tracked
+        quadSet = kwargs.pop("quadSet")                                          # quadrature set
         self.sNmu, self.wN = quadSet[0], quadSet[1]                              # quadrature weights
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
         self.legArray = kwargs.pop("legP", createLegArray(self.sNmu, self.maxLegOrder))     # Stores leg polys
+        self.Ylm = createSphrHarm(self.sNmu, self.maxLegOrder)
         #
         # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
-        self._computeDeltaX()  # Compute deltaX
+        self._computeArea()  # Compute area
         #
         # Flux and source storage
         self.setEleScFlux(fluxStor[0])
@@ -77,9 +78,12 @@ class d2InteriorElement(object):
         self.nodeTotFlux = totFluxField[:, :, self.nodeIDs]
         self.centTotFlux = np.average(self.nodeTotFlux, axis=2)
 
-    def _computeDeltaX(self):
-        self.deltaX = np.abs(self.nodeVs[0] - self.nodeVs[1])
-        self.sortedNodeIndex = np.argsort(self.nodeVs)
+    def _computeArea(self):
+        self.area = np.abs(self.nodeVs[0, 0] * (self.nodeVs[1, 1] - self.nodeVs[2, 1]) +
+                           self.nodeVs[1, 0] * (self.nodeVs[2, 1] - self.nodeVs[0, 1]) +
+                           self.nodeVs[2, 0] * (self.noveVs[0, 1] - self.nodeVs[1, 1])) / 2.
+        self.sortedNodeIndexX = np.argsort(self.nodeVs[:, 0])
+        self.sortedNodeIndexY = np.argsort(self.nodeVs[:, 1])
 
     def getElemMatrix(self, g, o, totalXs):
         """
@@ -93,8 +97,9 @@ class d2InteriorElement(object):
         gives row collum tuples of where to locate the element matrix entries in
         the complete system 'A' matrix.
         """
-        elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
-                        (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
+        elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
+                        (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
+                        (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
         if self.nodeVs[0] < self.nodeVs[1]:
             #TODO: in 2 and 3D we will need to use the sortedNodeIndex to get sign on the grad
             # term correct! but in 1D, just comparing the node X locations is
@@ -103,15 +108,15 @@ class d2InteriorElement(object):
         else:
             feI = np.array([[1, -1], [1, -1]])
         feI2 = np.array([[1, 0.5], [0.5, 1]])
-        elemMatrix = (0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
+        elemMatrix = (0.5 * self.sNmu[o]) * feI + ((1 / 6.) * totalXs[g] * self.area) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
         """
         Produces right hand side of neutron balance for this element.
         """
-        elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1]])
-        elemRHS = 0.5 * self.deltaX * np.array([self.qin[g, o], self.qin[g, o]])
+        elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
+        elemRHS = (1 / 3.) * self.area * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):

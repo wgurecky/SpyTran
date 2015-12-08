@@ -12,6 +12,17 @@ def createLegArray(sNmu, lMax):
     return legArray
 
 
+def createSphrHarm(sNmu, omega, lMax):
+    sphArray = np.zeros((lMax + 1, lMax + 1, len(sNmu), len(omega)))
+    for m in range(lMax + 1):
+        # loop over legendre order
+        for l in range(lMax + 1):
+            for muI, mu in enumerate(sNmu):
+                for wI, w in enumerate(omega):
+                    sphArray[m, l, muI, wI] = spc.sph_harm(m, l, mu, w).real
+    return sphArray
+
+
 def readOrdFile(inFile, sNords):
     ords = np.fromtxt(inFile)
     if len(ords) == sNords:
