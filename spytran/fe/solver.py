@@ -42,7 +42,8 @@ class SnFeSlv(object):
         elif dim == 2:
             gmshMesh = gmsh2DMesh(geoFile=geoFile)  # Run gmsh
         self.nodes = gmshMesh.nodes
-        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict, nGroups, self.sNords, self.wN)    # build the mesh
+        self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict,
+                                   nGroups, self.sNords, quadSet, dim)    # build the mesh
         self.depth = 0  # scattering source iteration depth
         self.keff = 1
         self.buildTransOp()

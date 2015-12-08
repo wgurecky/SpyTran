@@ -14,8 +14,9 @@ class SuperMesh(object):
     Contains mappings betwen array/matrix field representation and element class
     representation.
     """
-    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, wN, dim=1):
-        self.nG, self.sNords, self.wN = nG, sNords, wN   # ngropus, nords, quadrature weights
+    def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, quadSet, dim=1):
+        self.nG, self.sNords = nG, sNords
+        self.sNmu, self.wN = quadSet[0], quadSet[1]
         self.nNodes = int(np.max(gmshMesh.regions.values()[0]['nodes'][:, 0] + 1))
         self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
@@ -26,7 +27,7 @@ class SuperMesh(object):
             if gmshRegion['type'] == 'interior':
                 self.regions[regionID] = RegionMesh(gmshRegion, fluxStor, materialDict[gmshRegion['material']],
                                                     bcDict, srcDict.get(gmshRegion['material'], None),
-                                                    nGroups=self.nG, sNords=self.sNords, dim=dim)
+                                                    nGroups=self.nG, sNords=self.sNords, quadSet=quadSet, dim=dim)
             elif gmshRegion['type'] == 'bc':
                 # mark boundary nodes
                 pass

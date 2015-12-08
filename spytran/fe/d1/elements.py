@@ -1,7 +1,6 @@
 import numpy as np
 from copy import deepcopy
 import sys
-from utils.ordReader import gaussLegQuadSet
 from utils.ordReader import createLegArray
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
@@ -23,8 +22,8 @@ class d1InteriorElement(object):
         """
         #
         # Basic data needed for scattering source calcs
-        self.sNords = kwargs.pop("sNords", 2)                                    # number of discrete dirs tracked
-        quadSet = kwargs.pop("quadSet", gaussLegQuadSet(self.sNords))            # quadrature set
+        self.sNords = kwargs.pop("sNords", 4)                                    # number of discrete dirs tracked
+        quadSet = kwargs.pop("quadSet")                                          # quadrature set
         self.sNmu, self.wN = quadSet[0], quadSet[1]                              # quadrature weights
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
