@@ -3,7 +3,7 @@ Point(1) = {0.0, 0.0, 0, 1.0};
 Point(2) = {25.0, 0.0, 0, 1.0};
 Point(3) = {50.0, 0.0, 0, 1.0};
 Line(1) = {1, 2};
-Line(2) = {2, 3};
+Line(2) = {3, 2};
 Physical Line(100) = {1};   // mat=mat_1
 Physical Line(200) = {2};   // mat=mat_2
 Physical Point(10) = {1};  // bc=bc1

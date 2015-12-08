@@ -3,15 +3,7 @@
 from fe import solver as fe1D
 from fe.post import Fe1DOutput as fe1Dplt
 import numpy as np
-
-# Load xs database
-import materials.materialMixxer as mx
-mx.genMaterialDict('./materials/newXS')
 np.set_printoptions(linewidth=200)  # set print to screen opts
-
-# Top level 1D and 2D controller script.
-# Recives input decks and runs the appropriate solvers.
-#
 
 
 def inputPreProc(inFile):
@@ -97,8 +89,11 @@ def multiplying():
 
 
 if __name__ == "__main__":
+    # Load xs database
+    import materials.materialMixxer as mx
+    mx.genMaterialDict('./materials/newXS')
     # Solver settings
-    sN, nG = 16, 10
+    sN, nG = 8, 10
     # Geometry
     geoFile = 'utils/testline2.geo'
     # Materials
@@ -120,13 +115,6 @@ if __name__ == "__main__":
     nonMultiplying(slv)
     slv.writeData('1Dtestout.h5')
     plotter = fe1Dplt('1Dtestout.h5')
-    plotter.plotScalarFlux(0)
-    plotter.plotScalarFlux(1)
-    plotter.plotScalarFlux(2)
-    plotter.plotScalarFlux(3)
-    plotter.plotScalarFlux(4)
-    plotter.plotScalarFlux(5)
-    plotter.plotScalarFlux(6)
-    plotter.plotScalarFlux(7)
-    plotter.plotScalarFlux(8)
-    plotter.plotScalarFlux(9)
+    for i in range(nG):
+        plotter.plotScalarFlux(i)
+    plotter.plotTotalFlux()
