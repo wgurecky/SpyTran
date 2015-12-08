@@ -224,7 +224,11 @@ class BoundaryElement(object):
         if self.bcData is 'vac':
             return self.vacBC(RHS)
         elif self.bcData is 'ref':
-            return self.refBC(RHS)
+            if depth == 0:
+                return self.vacBC(RHS)
+            else:
+                self.postSweepRefBC()
+                return self.refBC(RHS)
         elif type(self.bcData) is np.ndarray:
             if self.bcData.shape != self.parent.centTotFlux.shape:
                 print("WARNING: BC flux shape mismatch.")
@@ -247,7 +251,11 @@ class BoundaryElement(object):
         if self.bcData is 'vac':
             return self.vacBC2A(A)
         elif self.bcData is 'ref':
-            pass
+            return self.vacBC2A(A)
+            #if depth == 0:
+            #    return self.vacBC2A(A)
+            #else:
+            #    return self.fixedBC2A(A)
         elif type(self.bcData) is np.ndarray:
             if depth == 0:
                 return self.fixedBC2A(A)
@@ -324,11 +332,11 @@ class BoundaryElement(object):
             RHS[:, :, bcNodeID] = self.bcData
         return RHS
 
-    def postSweepRefBC(self, RHS):
+    def postSweepRefBC(self):
         """
         Bank outward ordinate fluxes in parent cell for use in next
         source iteration.
-        Perform this action after each spacial flux solve is complete.
+        Perform this action after each space flux solve is complete.
         """
         self.bankedRefFlux = np.zeros(self.parent.nodeScFlux.shape)
         for iDir in self.inOs[0]:

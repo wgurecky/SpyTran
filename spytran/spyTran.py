@@ -48,7 +48,7 @@ class D1solver(object):
               "{:.2e}".format(totScTime))
         print("====================================================================")
 
-    def kSolve(self, residTol=0.5e-5, kTol=1e-4, outerIterMax=10):
+    def kSolve(self, residTol=0.5e-5, kTol=1e-4, outerIterMax=15):
         finalIter = False
         print("====================================================================")
         print("=                         K-EIGEN SOLVER                           =")

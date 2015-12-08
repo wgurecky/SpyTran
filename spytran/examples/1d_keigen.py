@@ -1,6 +1,6 @@
 # to execute:
 # From spytran dir:
-#   python -m examples.1d_volsrc_slabs
+#   python -m examples.1d_keigen
 #
 
 import spyTran as spytran
@@ -13,7 +13,7 @@ import materials.materialMixxer as mx
 mx.genMaterialDict('./materials/newXS')
 
 # Solver settings
-sN, nG = 4, 10
+sN, nG = 2, 10
 
 # Geometry
 geoFile = pwdpath + '/geometry/1d_keigen.geo'
@@ -25,8 +25,8 @@ materialDict = {'mat_1': pinMaterial,
                 'mat_2': pinMaterial}
 
 # Boundary conditions
-bcDict = {'bc1': 'vac',
-          'bc2': 'vac'}
+bcDict = {'bc1': 'ref',
+          'bc2': 'ref'}
 
 # Volumetric sources
 srcDict = {'mat_1': 'fission',
@@ -36,7 +36,7 @@ srcDict = {'mat_1': 'fission',
 slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
 
 # Solve
-slv.kSolve(residTol=1e-6, kTol=1e-4)
+slv.kSolve(residTol=1e-6, kTol=1e-5)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot
