@@ -69,7 +69,10 @@ class d2InteriorElement(object):
         node scattered flux vector is a [ngrp, nord, nNodes] array
         """
         self.nodeScFlux = scFluxField[:, :, self.nodeIDs]  # scatteredFlux
-        self.centScFlux = np.average(self.nodeScFlux, axis=2)
+        # Use vandermonde matrix to obtain coeffs of lin interpolant for
+        # _all_ scalar flux fields
+        C = np.dot(self.vI, self.nodeScFlux)  # check dims!
+        self.centScFlux = np.dot(C, self.centroid)
 
     def setEleTotFlux(self, totFluxField):
         """
@@ -84,31 +87,27 @@ class d2InteriorElement(object):
                            self.nodeVs[2, 0] * (self.noveVs[0, 1] - self.nodeVs[1, 1])) / 2.
         self.sortedNodeIndexX = np.argsort(self.nodeVs[:, 0])
         self.sortedNodeIndexY = np.argsort(self.nodeVs[:, 1])
+        self.centroid = np.array([np.average(self.noveVs[:, 0]), np.average(self.nodeVs[:, 1])])
+        # pre-compute vandermonde and vandermonde matrix inverse on element init
+        self.vV = np.vstack(np.ones(3), self.nodeVs[:, 0], self.nodeVs[:, 1]).T
+        try:
+            self.vI = np.linalg.inv(self.vV)
+        except:
+            sys.exit("SINGULAR vandermonde matrix.  Mangled mesh.")
 
     def getElemMatrix(self, g, o, totalXs):
         """
         Returns element matrix for group g foran _interior_ element.
         Remember to account for boundary conditions elsewhere!
-
-        return ID and value matricies.
-        ID matrix:
-            ID11,   ID12
-            ID21,   ID22
         gives row collum tuples of where to locate the element matrix entries in
         the complete system 'A' matrix.
         """
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
-        if self.nodeVs[0] < self.nodeVs[1]:
-            #TODO: in 2 and 3D we will need to use the sortedNodeIndex to get sign on the grad
-            # term correct! but in 1D, just comparing the node X locations is
-            # good enough.
-            feI = np.array([[-1, 1], [-1, 1]])
-        else:
-            feI = np.array([[1, -1], [1, -1]])
-        feI2 = np.array([[1, 0.5], [0.5, 1]])
-        elemMatrix = (0.5 * self.sNmu[o]) * feI + ((1 / 6.) * totalXs[g] * self.area) * feI2
+        feI = np.array([[-1, 1, 1], [-1, 1, 1], [1, 1, 1]])
+        feI2 = np.array([[1, 0.25, 25], [0.25, 1, 0.25], [0.25, 0.25, 1]])
+        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 6.) * totalXs[g] * self.area) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -140,16 +139,8 @@ class d2InteriorElement(object):
         weights = np.array([np.zeros(self.maxLegOrder + 1)])
         lw = np.arange(self.maxLegOrder + 1)
         if depth >= 1:
-            #if depth >= 2:
-            #    for g in range(self.nG):
-            #        self.qin[g, :] = overRlx * (self.evalScatterSourceImp(g, skernel, weights, lw) - self.previousQin[g, :]) + self.previousQin[g, :]
-            #    self.previousQin = self.qin
-            #else:
-            #    for g in range(self.nG):
-            #        self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
-            #    self.previousQin = self.qin
-                for g in range(self.nG):
-                    self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
+            for g in range(self.nG):
+                self.qin[g, :] = self.evalScatterSourceImp(g, skernel, weights, lw)
         elif self.multiplying and depth == 0:
             for g in range(self.nG):
                 # compute gth group fission source
