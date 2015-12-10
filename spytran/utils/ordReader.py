@@ -42,6 +42,8 @@ class D2quadSet(object):
         for ordi in self.ords:
             ordi.computeReflectivePartners(self.ords)
         self.collectProps()
+        self.Ylm = createSphrHarm(self.mus, self.etas, 8)
+        self.wN = self.wgts
 
     def _computeAngles(self, o):
         """ compute and ascosiate mu and eta for each ordinate.
@@ -152,14 +154,16 @@ def createLegArray(sNmu, lMax):
     return legArray
 
 
-def createSphrHarm(sNmu, omega, lMax):
-    sphArray = np.zeros((lMax + 1, lMax + 1, len(sNmu), len(omega)))
+def createSphrHarm(mu, eta, lMax=8):
+    sphArray = np.zeros((lMax + 1, lMax + 1, len(mu)))
     for m in range(lMax + 1):
         # loop over legendre order
         for l in range(lMax + 1):
-            for muI, mu in enumerate(sNmu):
-                for wI, w in enumerate(omega):
-                    sphArray[m, l, muI, wI] = spc.sph_harm(m, l, mu, w).real
+            for i, (mmu, et) in enumerate(zip(mu, eta)):
+                try:
+                    sphArray[m, l, i] = spc.sph_harm(m, l, mmu, et).real
+                except:
+                    pass
     return sphArray
 
 

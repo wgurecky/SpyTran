@@ -2,8 +2,7 @@ import numpy as np
 import time
 import utils.hdf5dump as h5d
 from utils.ordReader import gaussLegQuadSet
-from utils.ordReader import levelSymQuadSet
-from utils.ordReader import createLegArray
+from utils.ordReader import D2quadSet
 from utils.gmshPreproc import gmsh1DMesh
 from utils.gmshPreproc import gmsh2DMesh
 from mesh import SuperMesh
@@ -29,13 +28,12 @@ class SnFeSlv(object):
         if dim == 1:
             quadSet = gaussLegQuadSet(sN)                      # quadrature set
             self.sNords = sN                                   # number of discrete dirs tracked
+            self.wN = quadSet[1]
         elif dim == 2:
-            quadSet = levelSymQuadSet(sN)
-            self.sNords = (sN * (sN + 2) / 8) * 4
-        self.sNmu, self.wN = quadSet[0], quadSet[1]             # quadrature weights
+            quadSet = D2quadSet(sN)
+            self.sNords, self.wN = quadSet.sNords, quadSet.wN
         self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
         self.nG = nGroups                                       # number of energy groups
-        self.legArray = createLegArray(self.sNmu, self.maxLegOrder)  # Stores leg polys
         #
         if dim == 1:
             gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
@@ -139,7 +137,6 @@ class SnFeSlv(object):
         # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
         # write eigenvalue
         h5data = {'nodes': self.nodes, 'ordFluxes': self.superMesh.totFluxField,
-                  'keff': self.keff, 'fluxNorm': self.norm,
-                  'mu': self.sNmu, 'weights': self.wN,
+                  'keff': self.keff, 'fluxNorm': self.norm, 'weights': self.wN,
                   'nGrp': self.nG, 'scrIters': self.depth}
         h5d.writeToHdf5(h5data, outFileName)

@@ -16,7 +16,6 @@ class SuperMesh(object):
     """
     def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, quadSet, dim=1):
         self.nG, self.sNords = nG, sNords
-        self.sNmu, self.wN = quadSet[0], quadSet[1]
         self.nNodes = int(np.max(gmshMesh.regions.values()[0]['nodes'][:, 0] + 1))
         self.sysRHS = np.zeros((self.nG, self.sNords, self.nNodes))        # source vector
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))   # scattered flux field
@@ -226,15 +225,3 @@ class RegionMesh(object):
                 fissionSrc += self.nuFission[g] * element.deltaX * element._evalCentTotAngleInt(g)
         #return np.dot(self.nuFission, self.getCellVols() * self.getTotScalarFlux().T)
         return fissionSrc
-
-    #def getCellVols(self):
-    #    for elementID, element in self.elements.iteritems():
-    #    return cellVols
-    #
-    #def getTotScalarFlux(self):
-    #    """ Produces an nGroup x nNodes ndarray """
-    #    angleIntFlux = np.zeros((self.totFluxField.shape[0], self.totFluxField.shape[2]))
-    #    for g in range(self.nG):
-    #        for i in range(self.nNodes):
-    #            angleIntFlux[g, i] = 0.5 * np.sum(self.wN * self.totFluxField)
-    #    return angleIntFlux

@@ -23,9 +23,9 @@ class d2InteriorElement(object):
         """
         #
         # Basic data needed for scattering source calcs
-        self.sNords = kwargs.pop("sNords")                                       # number of discrete dirs tracked
-        quadSet = kwargs.pop("quadSet")                                          # quadrature set
-        self.sNmu, self.wN = quadSet[0], quadSet[1]                              # quadrature weights
+        self.quadSet = kwargs.get("quadSet")
+        self.sNords = self.quadSet.sNords
+        self.sNmu, self.wN = self.quadSet.mus, self.quadSet.wN
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
         self.legArray = kwargs.pop("legP", createLegArray(self.sNmu, self.maxLegOrder))     # Stores leg polys
@@ -156,10 +156,16 @@ class d2InteriorElement(object):
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
-        ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
-        weights[0][:] = (2 * lw + 1) * ggprimeInScatter
+        # 2D INSCATTER
+        b = 0.25 * np.dot(self.wN * self.quadSet.Ylm[:, :], self.centScFlux[:, :].T)
+        # 1D INSCATTER
+        #b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
+        #ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
+        #weights[0][:] = (2 * lw + 1) * ggprimeInScatter
         return np.sum(weights.T * self.legArray, axis=0)
+
+    def _evalFluxMoments(self):
+        pass
 
     def _computeFissionSource(self, g, chiNuFission, keff):
         """
@@ -181,7 +187,7 @@ class d2InteriorElement(object):
         n is the ordinate iterate
         """
         scalarFlux = np.sum(self.wN * self.centTotFlux[g, :])
-        return 0.5 * scalarFlux
+        return 0.25 * scalarFlux
 
 
 class d2BoundaryElement(object):
