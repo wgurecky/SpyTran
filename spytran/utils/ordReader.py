@@ -76,10 +76,24 @@ class D2quadSet(object):
         self.wgts = np.zeros(len(self.ords))
         self.mus = np.zeros(len(self.ords))
         self.etas = np.zeros(len(self.ords))
+        self.zeds = np.zeros(len(self.ords))
         for i, ordi in enumerate(self.ords):
             self.wgts[i] = ordi.wgt
             self.mus[i] = ordi.mu
             self.etas[i] = ordi.eta
+            self.zeds[i] = ordi.zed
+
+    def plotOrds(self, figname='3dords.png'):
+        """ Plots the ordinate set """
+        import ordplot
+        ordplot.ordPlot(self.mus, self.etas, self.zeds, figname)
+
+    def plotOrdFlux(self, ordFlux):
+        """ Plots the ordinate set vectors scaled by their ordinate flux.
+        usefull for showing ordinate flux plots in all their 3d glory. """
+        if len(ordFlux) == len(self.mus):
+            # check ordFlux len
+            pass
 
 
 class Ordinate(object):
@@ -91,6 +105,7 @@ class Ordinate(object):
         self.oc, self.iD = oc, iD
         self.theta = np.arccos(self.mu)
         self.omega = np.arccos(self.eta * (1 - self.mu ** 2) ** (-1 / 2.))
+        self.zed = (1 - self.mu ** 2) ** (1 / 2.) * np.sin(self.omega)
 
     def computeReflectivePartners(self, ords):
         # reflect about the x,z and y,z plane - need a reflective partner for
@@ -166,5 +181,4 @@ def gaussLegQuadSet(sNords):
 
 if __name__ == "__main__":
     test2D = D2quadSet(4)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    print(test2D.sN)
+    test2D.plotOrds()
