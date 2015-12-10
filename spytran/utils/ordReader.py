@@ -9,10 +9,11 @@ class D2quadSet(object):
     """
     manipulates a 2D ordinate set.
     Octant numbering:
+
+          x
         1 |  0
         ------y
         2 |  3
-          x
 
     Usage:
         In the transport code ordinates are stored as a 1D array.
@@ -70,18 +71,29 @@ class D2quadSet(object):
 
     def dirCosine(self, testOmega):
         """ return ordinates that have component in same dir as test direciton """
-        pass
+        outNormalIDs, inNormalIDs, i = [], [], 0
+        for mu, eta, zed in zip(self.mus, self.etas, self.zeds):
+            if np.dot(testOmega, np.array([mu, eta, zed])) > 0:
+                outNormalIDs.append(i)
+            else:
+                inNormalIDs.append(i)
+            i += 1
+        return np.array(outNormalIDs), np.array(inNormalIDs)
 
     def collectProps(self):
         self.wgts = np.zeros(len(self.ords))
         self.mus = np.zeros(len(self.ords))
         self.etas = np.zeros(len(self.ords))
         self.zeds = np.zeros(len(self.ords))
+        self.xzpairs = np.zeros((len(self.ords), 2))
+        self.yzpairs = np.zeros((len(self.ords), 2))
         for i, ordi in enumerate(self.ords):
             self.wgts[i] = ordi.wgt
             self.mus[i] = ordi.mu
             self.etas[i] = ordi.eta
             self.zeds[i] = ordi.zed
+            self.xzpairs[i] = ordi.xzpair
+            self.yzpairs[i] = ordi.yzpair
 
     def plotOrds(self, figname='3dords.png'):
         """ Plots the ordinate set """
@@ -111,10 +123,10 @@ class Ordinate(object):
         # reflect about the x,z and y,z plane - need a reflective partner for
         # both situations in 2D
         for canidateOrd in ords:
-            if self.mu == canidateOrd.mu:
-                pass
-            if self.eta == canidateOrd.eta:
-                pass
+            if self.mu == -1 * canidateOrd.mu and self.eta == canidateOrd.eta:
+                self.xzpair = np.array([self.iD, canidateOrd.iD])
+            if self.eta == -1 * canidateOrd.eta and self.mu == canidateOrd.mu:
+                self.yzpair = np.array([self.iD, canidateOrd.iD])
 
 
 def levelSymQuadSet(sN):
@@ -181,4 +193,10 @@ def gaussLegQuadSet(sNords):
 
 if __name__ == "__main__":
     test2D = D2quadSet(4)
-    test2D.plotOrds()
+    #test2D.plotOrds()
+    testOrd = np.array([1, 0, 0])
+    outOrds, inOrds = test2D.dirCosine(testOrd)
+    print("Ords IDs with positive dot product with given test vector")
+    print(outOrds)
+    print("Ord IDs with negative dot product with given test vector")
+    print(inOrds)
