@@ -78,11 +78,8 @@ class d2InteriorElement(object):
         self.centTotFlux = np.average(self.nodeTotFlux, axis=2)
 
     def _computeArea(self):
-        self.area = np.abs(self.nodeVs[0, 0] * (self.nodeVs[1, 1] - self.nodeVs[2, 1]) +
-                           self.nodeVs[1, 0] * (self.nodeVs[2, 1] - self.nodeVs[0, 1]) +
-                           self.nodeVs[2, 0] * (self.noveVs[0, 1] - self.nodeVs[1, 1])) / 2.
-        self.sortedNodeIndexX = np.argsort(self.nodeVs[:, 0])
-        self.sortedNodeIndexY = np.argsort(self.nodeVs[:, 1])
+        #self.sortedNodeIndexX = np.argsort(self.nodeVs[:, 0])
+        #self.sortedNodeIndexY = np.argsort(self.nodeVs[:, 1])
         self.centroid = np.array([np.average(self.noveVs[:, 0]), np.average(self.nodeVs[:, 1])])
         # pre-compute vandermonde and vandermonde matrix inverse on element init
         self.vV = np.vstack(np.ones(3), self.nodeVs[:, 0], self.nodeVs[:, 1]).T
@@ -90,6 +87,7 @@ class d2InteriorElement(object):
             self.vI = np.linalg.inv(self.vV)
         except:
             sys.exit("SINGULAR vandermonde matrix.  Mangled mesh.")
+        self.area = 0.5 * abs(np.linalg.det(self.vV))
 
     def getElemMatrix(self, g, o, totalXs):
         """

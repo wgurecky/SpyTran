@@ -222,6 +222,9 @@ class RegionMesh(object):
         fissionSrc = 0
         for elementID, element in self.elements.iteritems():
             for g in range(self.nG):
-                fissionSrc += self.nuFission[g] * element.deltaX * element._evalCentTotAngleInt(g)
+                if self.dim == 1:
+                    fissionSrc += self.nuFission[g] * element.deltaX * element._evalCentTotAngleInt(g)
+                elif self.dim == 2:
+                    fissionSrc += self.nuFission[g] * element.area * element._evalCentTotAngleInt(g)
         #return np.dot(self.nuFission, self.getCellVols() * self.getTotScalarFlux().T)
         return fissionSrc
