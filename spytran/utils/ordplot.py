@@ -9,11 +9,11 @@ ax.set_xlabel(r'$\mu$')
 ax.set_zlabel('z')
 
 #draw sphere
-u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi:20j]
 x = np.cos(u)*np.sin(v)
 y = np.sin(u)*np.sin(v)
 z = np.cos(v)
-ax.plot_wireframe(x, y, z, color="r")
+ax.plot_wireframe(x, y, z, color="r", linewidth=0.2)
 
 #draw a point
 ax.scatter([0], [0], [0], color="g", s=100)

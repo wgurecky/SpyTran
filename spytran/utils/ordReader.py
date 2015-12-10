@@ -197,7 +197,7 @@ def gaussLegQuadSet(sNords):
 
 if __name__ == "__main__":
     test2D = D2quadSet(4)
-    #test2D.plotOrds()
+    test2D.plotOrds()
     testOrd = np.array([1, 0, 0])
     outOrds, inOrds = test2D.dirCosine(testOrd)
     print("Ords IDs with positive dot product with given test vector")

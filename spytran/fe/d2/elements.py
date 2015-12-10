@@ -1,18 +1,16 @@
 import numpy as np
 from copy import deepcopy
 import sys
-from utils.ordReader import createLegArray
-from utils.ordReader import createSphrHarm
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
 class d2InteriorElement(object):
     """
-    Finite element 1D Sn class.
+    Finite element 2D Sn class.
 
-    A 1D finite element contains flux support points on either end.  Source
+    A 2D finite element contains flux support points on triangle nodes.  Source
     terms are computed at the center of the element. linear interpolation is used
-    to find the value of the flux at the center of the node (required for computing
+    to find the value of the flux at the center of the element (required for computing
     the souce term at the finite element centroid.
     """
 
@@ -28,8 +26,6 @@ class d2InteriorElement(object):
         self.sNmu, self.wN = self.quadSet.mus, self.quadSet.wN
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
-        self.legArray = kwargs.pop("legP", createLegArray(self.sNmu, self.maxLegOrder))     # Stores leg polys
-        self.Ylm = createSphrHarm(self.sNmu, self.maxLegOrder)
         #
         # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
@@ -105,7 +101,7 @@ class d2InteriorElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
-        feI = np.array([[-1, 1, 1], [-1, 1, 1], [1, 1, 1]])
+        feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
         feI2 = np.array([[1, 0.25, 25], [0.25, 1, 0.25], [0.25, 0.25, 1]])
         elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 6.) * totalXs[g] * self.area) * feI2
         return elemIDmatrix, elemMatrix.flatten()
@@ -151,21 +147,28 @@ class d2InteriorElement(object):
             self.resetTotOrdFlux()
         return self.qin
 
-    def evalScatterSourceImp(self, g, skernel, weights, lw):
+    def evalScatterSourceImp(self, G, skernel, weights, lw):
         """
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        # 2D INSCATTER
-        b = 0.25 * np.dot(self.wN * self.quadSet.Ylm[:, :], self.centScFlux[:, :].T)
-        # 1D INSCATTER
-        #b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
-        #ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
-        #weights[0][:] = (2 * lw + 1) * ggprimeInScatter
-        return np.sum(weights.T * self.legArray, axis=0)
+        S = np.zeros(self.qin.shape)
+        for n in range(0, len(S)):
+            for gp in range(self.nG):
+                for l in range(self.maxLegOrder + 1):
+                    S[G, n] += skernel[gp, G, l] * self._innerSum(n, l, gp)
+        return S
 
-    def _evalFluxMoments(self):
-        pass
+    def _evalFluxMoments(self, l, m, gp):
+        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centTotFlux[gp, :])
+
+    def _innerSum(self, n, l, gp):
+        isum = 0.
+        c = np.zero(l)
+        c[0] = -1.
+        for m in range(0, l):
+            isum += np.sum((c[m] + 2) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
+        return isum
 
     def _computeFissionSource(self, g, chiNuFission, keff):
         """
@@ -192,7 +195,7 @@ class d2InteriorElement(object):
 
 class d2BoundaryElement(object):
     """
-    In 1D boundary conditions are specified on a node.
+    In 2D boundary conditions are specified on a node.
     Equivillent to a boundary element in 2D.
     Contains methods to compute face normals needed for setting vacuume and
     reflective boundary conditions.
@@ -268,20 +271,30 @@ class d2BoundaryElement(object):
         # obtain node(s) that are common between parent ele and boundary.
         commonNodeV = np.intersect1d(self.parent.nodeVs, self.nodeVs)
         self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
-        # obtain odd man out node
         lonelyNodeV = np.setdiff1d(self.parent.nodeVs, self.nodeVs)
-        # In 2D and 3D we must find orthogonal line to surface/line
-        self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)
+        # determine outward normal
+        deltaX = self.nodeVs[1, 0] - self.nodeVs[0, 0]
+        deltaY = self.noveVs[1, 1] - self.nodeVs[0, 1]
+        # we have 2 canidate vectors: (in 3D we would use np.cross to find perp
+        # vectors to a surface, but in 2d its simpler than that)
+        c1 = np.array([-deltaX, deltaY])
+        c2 = np.array([deltaX, -deltaY])
+        # but only 1 can be the correct outward normal vec (the other is inward
+        # normal)
+        # where is the lonely node located in relation to the two border nodes?
+        t1 = np.array([lonelyNodeV[0] - self.nodeVs[0, 0], lonelyNodeV[1] - self.nodeVs[0, 1]])
+        if np.dot(c1, t1) > 0:
+            # found it!
+            vec = c1
+        else:
+            # its the other one.
+            vec = c2
+        vec = vec / np.linalg.norm(vec)   # norm vec
+        # given as standard [nu, eta, ksi] set
+        self.outwardNormal = np.array([vec[0], vec[1], 0])
 
     def computeInOrds(self):
-        """ Compute inward ordinate directions.  Those ords with dot product with the
-        outward normal negative """
-        # Works for 1D only at the moment, simple inspection of the
-        # magnitude of multiplication of direction
-        # cosines works fine.
-        faceDot = self.parent.sNmu * self.outwardNormal
-        self.inOs = np.where(faceDot < 0)
-        self.outOs = np.where(faceDot >= 0)
+        self.outOs, self.inOs = self.parent.quadSet.dirCosine(self.outwardNormal)
 
     def vacBC2A(self, A):
         """
@@ -341,10 +354,15 @@ class d2BoundaryElement(object):
         Perform this action after each space flux solve is complete.
         """
         self.bankedRefFlux = np.zeros(self.parent.nodeScFlux.shape)
-        for iDir in self.inOs[0]:
-            # get negative mu in iDir
-            negDir = -1 * self.parent.sNmu[iDir]
-            outDir = np.where(np.round(negDir, 6) == np.round(self.parent.sNmu, 6))
-            # only look at nodes which lie on boundary
-            self.bankedRefFlux[:, iDir, self.internalBCnodeIDs] = \
-                self.parent.nodeScFlux[:, outDir[0][0], self.internalBCnodeIDs]
+        if np.allclose(self.outwardNormal, np.array([1, 0, 0])) or np.allclose(self.outwardNormal, np.array([-1, 0, 0])):
+            inDirs = self.parent.quadSet.xzpairs[self.inOs][:, 0]
+            outDirs = self.parent.quadSet.xzpairs[self.inOs][:, 1]
+        elif np.allclose(self.outwardNormal, np.array([0, 1, 0])) or np.allclose(self.outwardNormal, np.array([0, -1, 0])):
+            inDirs = self.parent.quadSet.yzpairs[self.inOs][:, 0]
+            outDirs = self.parent.quadSet.yzpairs[self.inOs][:, 1]
+        else:
+            print("Can only handle boundaries perpendicular to x or y axis at the moment")
+            print("Future: add arbitrary bc orientation capability")
+            sys.exit()
+        self.bankedRefFlux[:, inDirs, self.internalBCnodeIDs] = \
+            self.parent.nodeScFlux[:, outDirs, self.internalBCnodeIDs]
