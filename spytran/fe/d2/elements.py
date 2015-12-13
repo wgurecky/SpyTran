@@ -103,9 +103,9 @@ class d2InteriorElement(object):
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
         feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
-        feI2 = np.array([[2, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
+        feI2 = np.array([[2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
         elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
-            ((1 / 24.) * totalXs[g] * (2. * self.area)) * feI2
+            ((1 / 24.) * totalXs[g] * (1. * self.area)) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -115,7 +115,7 @@ class d2InteriorElement(object):
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
         #J = np.array([[np.nodeVs[1, 0] - np.nodeVs[0, 0]], [np.nodeVs[2, 0] - np.nodeVs[0, 0]],
         #              [np.nodeVs[1, 1] - np.nodeVs[0, 1]], [np.nodeVs[2, 1] - np.nodeVs[0, 1]]])
-        elemRHS = (1 / 6.) * (2. * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
+        elemRHS = (1 / 6.) * (1. * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
