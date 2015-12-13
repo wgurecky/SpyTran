@@ -159,10 +159,12 @@ class d1InteriorElement(object):
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        b = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
-        ggprimeInScatter = np.sum(skernel[:, g, :].T * b.T, axis=0)
+        # legArray[l, ord]
+        fluxM = 0.5 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
+        ggprimeInScatter = np.sum(skernel[:, g, :].T * fluxM.T, axis=0)
         weights[0][:] = (2 * lw + 1) * ggprimeInScatter
-        return np.sum(weights.T * self.legArray, axis=0)
+        scSource = np.sum(weights.T * self.legArray, axis=0)
+        return scSource
 
     def _computeFissionSource(self, g, chiNuFission, keff):
         """

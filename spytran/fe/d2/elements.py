@@ -26,6 +26,8 @@ class d2InteriorElement(object):
         self.sNmu, self.sNeta, self.wN = self.quadSet.mus, self.quadSet.etas, self.quadSet.wN
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
+        self.C = np.zeros(self.maxLegOrder + 1)
+        self.C[0] = 1.
         #
         # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
@@ -102,7 +104,7 @@ class d2InteriorElement(object):
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
         feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
         feI2 = np.array([[2, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
-        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
+        elemMatrix = ((1 / 6.) * self.sNmu[o]) * feI + ((1 / 6.) * self.sNeta[o]) * feI + \
             ((1 / 24.) * totalXs[g] * (2. * self.area)) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
@@ -134,7 +136,8 @@ class d2InteriorElement(object):
             :return: return notes
             :rtype: return type
         """
-        weights = np.array([np.zeros(self.maxLegOrder + 1)])
+        #weights = np.array([np.zeros(self.maxLegOrder + 1)])
+        weights = np.array([np.zeros((self.maxLegOrder + 1, self.maxLegOrder + 1))])
         lw = np.arange(self.maxLegOrder + 1)
         if depth >= 1:
             for g in range(self.nG):
@@ -154,22 +157,31 @@ class d2InteriorElement(object):
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        S = np.zeros(self.qin.shape[1])
-        for n in range(0, self.qin.shape[1]):
-            for gp in range(self.nG):
-                for l in range(self.maxLegOrder + 1):
-                    S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
-        return S
+        # Ylm[m, l, ord]
+        #b = 0.25 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
+        fluxM = 0.25 * np.dot(self.wN * self.quadSet.Ylm[:, :, :], self.centScFlux[:, :].T)
+        ggprimeInScatter = np.sum(skernel[:, G, :] * fluxM, axis=2)
+        weights[0] = (2 - self.C) * ggprimeInScatter
+        scSource = np.sum(weights.T * self.quadSet.Ylm, axis=(0, 1))
+        #
+        #S = np.zeros(self.qin.shape[1])
+        #for n in range(0, self.qin.shape[1]):
+        #    for gp in range(self.nG):
+        #        for l in range(self.maxLegOrder + 1):
+        #            S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
+        #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #return S
+        return scSource
 
     def _evalFluxMoments(self, l, m, gp):
-        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centTotFlux[gp, :])
+        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centScFlux[gp, :])
 
     def _innerSum(self, n, l, gp):
         isum = 0.
-        c = np.zeros(l + 1)
-        c[0] = -1.
+        #c = np.zeros(l + 1)
+        #c[0] = -1.
         for m in range(0, l):
-            isum += np.sum((c[m] + 2) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
+            isum += np.sum((2 - self.C[m]) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
         return isum
 
     def _computeFissionSource(self, g, chiNuFission, keff):
