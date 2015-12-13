@@ -154,11 +154,11 @@ class d2InteriorElement(object):
         Impoved version of eval scatter source.  Performs same
         operations with 0 _python_ for loops.  all in numpy!
         """
-        S = np.zeros(self.qin.shape)
-        for n in range(0, len(S)):
+        S = np.zeros(self.qin.shape[1])
+        for n in range(0, self.qin.shape[1]):
             for gp in range(self.nG):
                 for l in range(self.maxLegOrder + 1):
-                    S[G, n] += skernel[gp, G, l] * self._innerSum(n, l, gp)
+                    S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
         return S
 
     def _evalFluxMoments(self, l, m, gp):
@@ -166,7 +166,7 @@ class d2InteriorElement(object):
 
     def _innerSum(self, n, l, gp):
         isum = 0.
-        c = np.zero(l)
+        c = np.zeros(l + 1)
         c[0] = -1.
         for m in range(0, l):
             isum += np.sum((c[m] + 2) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
@@ -223,6 +223,7 @@ class d2BoundaryElement(object):
         # ordinate direction and node location info required to determine
         # outward normals
         self.parent = parentElement
+        self.nGv = np.arange(self.parent.nG)
         self.bcData = bcData  # could be a string e.g: 'vac', or could be a dict
         self.computeOutNormal()
         self.computeInOrds()
@@ -348,9 +349,9 @@ class d2BoundaryElement(object):
         RHS for all groups, g,  and for inward facing ordinates, are set to
         zero.
         """
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         # TODO: FIX multiple element assignment in 2d!!
-        RHS[:, self.inOs, self.nodeIDs] = 0
+        RHS[np.ix_(self.nGv, self.inOs, self.nodeIDs)] = 0
+        #RHS[:, self.inOs, self.nodeIDs] = 0   # does not work if len(inOs) != len(nodeIDs)
         return RHS
 
     def refBC(self, RHS):
@@ -358,7 +359,9 @@ class d2BoundaryElement(object):
         Apply reflected flux dirichletBC.  Take banked fluxes on the outer surface
         and add to the RHS.
         """
-        RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
+        RHS[np.ix_(self.nGv, self.inOs, self.nodeIDs)] = \
+            self.bankedRefFlux[np.ix_(self.nGv, self.inOs, self.internalBCnodeIDs)]
+        #RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
         return RHS
 
     def dirichletBC(self, RHS):
@@ -386,5 +389,7 @@ class d2BoundaryElement(object):
             print("Can only handle boundaries perpendicular to x or y axis at the moment")
             print("Future: add arbitrary bc orientation capability")
             sys.exit()
-        self.bankedRefFlux[:, inDirs, self.internalBCnodeIDs] = \
-            self.parent.nodeScFlux[:, outDirs, self.internalBCnodeIDs]
+        #self.bankedRefFlux[:, inDirs, self.internalBCnodeIDs] = \
+        #    self.parent.nodeScFlux[:, outDirs, self.internalBCnodeIDs]
+        self.bankedRefFlux[np.ix_(self.nGv, inDirs, self.internalBCnodeIDs)] = \
+            self.parent.nodeScFlux[np.ix_(self.nGv, outDirs, self.internalBCnodeIDs)]

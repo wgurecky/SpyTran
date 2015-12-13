@@ -107,7 +107,9 @@ class SnFeSlv(object):
             # perform scattering src iterations untill flux tol falls below spcified rtol
             self.scatterSource()
             self.solveFlux()
-            if verbosity == 1 and i % 5 == 0:
+            if verbosity == 1 and i % 1 == 0:
+                print("Time Lin Solver: " + str(self.timeLinSolver) + " [s]")
+                print("Time Scatter it: " + str(self.timeScatter) + " [s]")
                 print("Scatter iteration " + "{0: <4}".format(i) + "  resid norm= " + "{:.4e}".format(self.norm))
             if self.norm <= rTol:
                 break
