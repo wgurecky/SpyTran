@@ -23,7 +23,7 @@ class d2InteriorElement(object):
         # Basic data needed for scattering source calcs
         self.quadSet = kwargs.get("quadSet")
         self.sNords = self.quadSet.sNords
-        self.sNmu, self.wN = self.quadSet.mus, self.quadSet.wN
+        self.sNmu, self.sNeta, self.wN = self.quadSet.mus, self.quadSet.etas, self.quadSet.wN
         self.maxLegOrder = kwargs.pop("legOrder", 8)                             # remember to range(maxLegORder + 1)
         self.nG = kwargs.pop("nGroups", 10)                                      # number of energy groups
         #
@@ -67,8 +67,9 @@ class d2InteriorElement(object):
         self.nodeScFlux = scFluxField[:, :, self.nodeIDs]  # scatteredFlux
         # Use vandermonde matrix to obtain coeffs of lin interpolant for
         # _all_ scalar flux fields
-        C = np.dot(self.vI, self.nodeScFlux)  # check dims!
-        self.centScFlux = np.dot(C, self.centroid)
+        #C = np.dot(self.vI, self.nodeScFlux)  # check dims!
+        #self.centScFlux = np.dot(C, self.centAroid)
+        self.centScFlux = np.average(self.nodeScFlux, axis=2)
 
     def setEleTotFlux(self, totFluxField):
         """
@@ -80,9 +81,9 @@ class d2InteriorElement(object):
     def _computeArea(self):
         #self.sortedNodeIndexX = np.argsort(self.nodeVs[:, 0])
         #self.sortedNodeIndexY = np.argsort(self.nodeVs[:, 1])
-        self.centroid = np.array([np.average(self.noveVs[:, 0]), np.average(self.nodeVs[:, 1])])
+        self.centroid = np.array([np.average(self.nodeVs[:, 0]), np.average(self.nodeVs[:, 1])])
         # pre-compute vandermonde and vandermonde matrix inverse on element init
-        self.vV = np.vstack(np.ones(3), self.nodeVs[:, 0], self.nodeVs[:, 1]).T
+        self.vV = np.vstack([np.ones(3), self.nodeVs[:, 0], self.nodeVs[:, 1]]).T
         try:
             self.vI = np.linalg.inv(self.vV)
         except:
@@ -100,8 +101,9 @@ class d2InteriorElement(object):
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
         feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
-        feI2 = np.array([[1, 0.25, 25], [0.25, 1, 0.25], [0.25, 0.25, 1]])
-        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 6.) * totalXs[g] * self.area) * feI2
+        feI2 = np.array([[2, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
+        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
+            ((1 / 24.) * totalXs[g] * (2. * self.area)) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -109,7 +111,9 @@ class d2InteriorElement(object):
         Produces right hand side of neutron balance for this element.
         """
         elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
-        elemRHS = (1 / 3.) * self.area * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
+        #J = np.array([[np.nodeVs[1, 0] - np.nodeVs[0, 0]], [np.nodeVs[2, 0] - np.nodeVs[0, 0]],
+        #              [np.nodeVs[1, 1] - np.nodeVs[0, 1]], [np.nodeVs[2, 1] - np.nodeVs[0, 1]]])
+        elemRHS = (1 / 6.) * (2. * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
         return elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
@@ -267,20 +271,23 @@ class d2BoundaryElement(object):
 
     def computeOutNormal(self):
         # obtain node(s) that are common between parent ele and boundary.
-        commonNodeV = np.intersect1d(self.parent.nodeVs, self.nodeVs)
+        commonNodeV = self._computeArrayIntersection(self.parent.nodeVs, self.nodeVs)
         self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
-        lonelyNodeV = np.setdiff1d(self.parent.nodeVs, self.nodeVs)
+        lonelyNodeV = self._computeArrayDiff(self.parent.nodeVs, self.nodeVs)
         # determine outward normal
         deltaX = self.nodeVs[1, 0] - self.nodeVs[0, 0]
-        deltaY = self.noveVs[1, 1] - self.nodeVs[0, 1]
+        deltaY = self.nodeVs[1, 1] - self.nodeVs[0, 1]
         # we have 2 canidate vectors: (in 3D we would use np.cross to find perp
         # vectors to a surface, but in 2d its simpler than that)
-        c1 = np.array([-deltaX, deltaY])
-        c2 = np.array([deltaX, -deltaY])
+        #c1 = np.array([-deltaX, deltaY])
+        #c2 = np.array([deltaX, -deltaY])
+        #
+        c1 = np.array([-deltaY, deltaX])
+        c2 = np.array([deltaY, -deltaX])
         # but only 1 can be the correct outward normal vec (the other is inward
         # normal)
         # where is the lonely node located in relation to the two border nodes?
-        t1 = np.array([lonelyNodeV[0] - self.nodeVs[0, 0], lonelyNodeV[1] - self.nodeVs[0, 1]])
+        t1 = np.array([lonelyNodeV[0, 0] - self.nodeVs[0, 0], lonelyNodeV[0, 1] - self.nodeVs[0, 1]])
         if np.dot(c1, t1) > 0:
             # found it!
             vec = c1
@@ -290,6 +297,21 @@ class d2BoundaryElement(object):
         vec = vec / np.linalg.norm(vec)   # norm vec
         # given as standard [nu, eta, ksi] set
         self.outwardNormal = np.array([vec[0], vec[1], 0])
+        self.outwardNormal[abs(self.outwardNormal) < 1e-4] = 0
+
+    def _computeArrayIntersection(self, a, b):
+        """ np.intersect1d wont work for 2d arrays, so this dirty hack does the
+        trick """
+        av = a.view([('', a.dtype)] * a.shape[1]).ravel()
+        bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
+        return np.intersect1d(av, bv).view(a.dtype).reshape(-1, a.shape[1])
+
+    def _computeArrayDiff(self, a, b):
+        """ np.setdiff1d wont work for 2d arrays, so this dirty hack does the
+        trick """
+        av = a.view([('', a.dtype)] * a.shape[1]).ravel()
+        bv = b.view([('', b.dtype)] * b.shape[1]).ravel()
+        return np.setdiff1d(av, bv).view(a.dtype).reshape(-1, a.shape[1])
 
     def computeInOrds(self):
         self.outOs, self.inOs = self.parent.quadSet.dirCosine(self.outwardNormal)
@@ -303,7 +325,7 @@ class d2BoundaryElement(object):
         # system A is structured as:
         # [group, ordinate, n, n], where n is number of nodes in the problem
         for o in range(self.parent.sNords):
-            if o in self.inOs[0]:
+            if o in self.inOs:
                 for g in range(self.parent.nG):
                     A[g, o][self.nodeIDs, :] = 0.
                     A[g, o][self.nodeIDs, self.nodeIDs] = 1.
@@ -326,6 +348,8 @@ class d2BoundaryElement(object):
         RHS for all groups, g,  and for inward facing ordinates, are set to
         zero.
         """
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        # TODO: FIX multiple element assignment in 2d!!
         RHS[:, self.inOs, self.nodeIDs] = 0
         return RHS
 

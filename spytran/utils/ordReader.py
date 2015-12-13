@@ -3,6 +3,7 @@
 import sys
 import numpy as np
 import scipy.special as spc
+import scipy.misc as msc
 
 
 class D2quadSet(object):
@@ -87,6 +88,7 @@ class D2quadSet(object):
         self.mus = np.zeros(len(self.ords))
         self.etas = np.zeros(len(self.ords))
         self.zeds = np.zeros(len(self.ords))
+        self.omegas = np.zeros(len(self.ords))
         self.xzpairs = np.zeros((len(self.ords), 2))
         self.yzpairs = np.zeros((len(self.ords), 2))
         for i, ordi in enumerate(self.ords):
@@ -94,6 +96,7 @@ class D2quadSet(object):
             self.mus[i] = ordi.mu
             self.etas[i] = ordi.eta
             self.zeds[i] = ordi.zed
+            self.omegas[i] = ordi.omega
             self.xzpairs[i] = ordi.xzpair
             self.yzpairs[i] = ordi.yzpair
 
@@ -154,14 +157,17 @@ def createLegArray(sNmu, lMax):
     return legArray
 
 
-def createSphrHarm(mu, eta, lMax=8):
+def createSphrHarm(mu, omega, lMax=8):
     sphArray = np.zeros((lMax + 1, lMax + 1, len(mu)))
     for m in range(lMax + 1):
-        # loop over legendre order
         for l in range(lMax + 1):
-            for i, (mmu, et) in enumerate(zip(mu, eta)):
+            # loop over legendre order
+            for i, (mmu, om) in enumerate(zip(mu, omega)):
                 try:
-                    sphArray[m, l, i] = spc.sph_harm(m, l, mmu, et).real
+                    C = (2 * l + 1) * float(msc.factorial(l - m)) / \
+                        float(msc.factorial(l + m))
+                    sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.exp(complex(om * m)))
+                    #sphArray[m, l, i] = spc.sph_harm(m, l, mmu, om).real
                 except:
                     pass
     return sphArray

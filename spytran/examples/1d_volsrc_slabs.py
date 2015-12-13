@@ -39,7 +39,7 @@ srcDict = {'mat_1': None,
 slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
 
 # Solve
-slv.trSolve(residTol=1e-6)
+slv.trSolve(residTol=1e-5)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot

@@ -143,10 +143,12 @@ class RegionMesh(object):
         self.elements = {}
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
-            nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+            #nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
             if self.dim == 1:
+                nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                 self.elements[element[0]] = d1InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
             else:
+                nodePos = np.array([gmshRegion['nodes'][nodeID][1:3] for nodeID in nodeIDs])
                 self.elements[element[0]] = d2InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
 
     def linkBoundaryElements(self, gmshRegion):
@@ -158,10 +160,11 @@ class RegionMesh(object):
         for bctype, bcElms in gmshRegion['bcElms'].iteritems():
             if type(bcElms) is dict:
                 for bcElmID, nodeIDs in bcElms.iteritems():
-                    nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                     if self.dim == 1:
+                        nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                         self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
                     else:
+                        nodePos = np.array([gmshRegion['nodes'][nodeID][1:3] for nodeID in nodeIDs])
                         self.belements[bcElmID] = d2BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
 
     def buildRegionA(self, A, g, o):
