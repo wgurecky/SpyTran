@@ -104,7 +104,7 @@ class d2InteriorElement(object):
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
         feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
         feI2 = np.array([[2, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
-        elemMatrix = ((1 / 6.) * self.sNmu[o]) * feI + ((1 / 6.) * self.sNeta[o]) * feI + \
+        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
             ((1 / 24.) * totalXs[g] * (2. * self.area)) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
@@ -392,11 +392,11 @@ class d2BoundaryElement(object):
         """
         self.bankedRefFlux = np.zeros(self.parent.nodeScFlux.shape)
         if np.allclose(self.outwardNormal, np.array([1, 0, 0])) or np.allclose(self.outwardNormal, np.array([-1, 0, 0])):
-            inDirs = self.parent.quadSet.xzpairs[self.inOs][:, 0]
-            outDirs = self.parent.quadSet.xzpairs[self.inOs][:, 1]
+            inDirs = np.array(self.parent.quadSet.xzpairs[self.inOs][:, 0], dtype=int)
+            outDirs = np.array(self.parent.quadSet.xzpairs[self.inOs][:, 1], dtype=int)
         elif np.allclose(self.outwardNormal, np.array([0, 1, 0])) or np.allclose(self.outwardNormal, np.array([0, -1, 0])):
-            inDirs = self.parent.quadSet.yzpairs[self.inOs][:, 0]
-            outDirs = self.parent.quadSet.yzpairs[self.inOs][:, 1]
+            inDirs = np.array(self.parent.quadSet.yzpairs[self.inOs][:, 0], dtype=int)
+            outDirs = np.array(self.parent.quadSet.yzpairs[self.inOs][:, 1], dtype=int)
         else:
             print("Can only handle boundaries perpendicular to x or y axis at the moment")
             print("Future: add arbitrary bc orientation capability")

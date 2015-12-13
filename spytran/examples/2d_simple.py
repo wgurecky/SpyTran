@@ -41,12 +41,10 @@ slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict,
                        nG=nG, sN=sN, dim=2)
 
 # Solve
-slv.kSolve(residTol=1e-6, kTol=1e-5)
-slv.writeData(pwdpath + '/output/1Dtestout.h5')
+slv.kSolve(residTol=1e-6, kTol=1e-5, outerIterMax=2)
+slv.writeData(pwdpath + '/output/2Dtestout.h5')
 
 # Plot
-from fe.post import Fe1DOutput as fe1Dplt
-plotter = fe1Dplt(pwdpath + '/output/1Dtestout.h5')
-for i in range(nG):
-    plotter.plotScalarFlux(i, fname=pwdpath + '/output/scflux.png')
-plotter.plotTotalFlux(fname=pwdpath + '/output/totflux.png')
+from fe.post import Fe2DOutput as fe2Dplt
+plotter = fe2Dplt(pwdpath + '/output/2Dtestout.h5')
+plotter.writeToVTK(fname=pwdpath + '/output/2dplot.png')

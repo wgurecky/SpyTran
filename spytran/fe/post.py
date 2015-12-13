@@ -47,3 +47,47 @@ class Fe1DOutput(object):
         plotData = np.array([self.nodes[:, 1], self.totFlux])
         plotData = plotData[:, np.argsort(plotData[0])]
         sfp.plot1DScalarFlux(plotData[1], plotData[0], label='tot', fnameOut=fname)
+
+
+class Fe2DOutput(object):
+    def __init__(self, dataFile):
+        f = h5py.File(dataFile, 'r')
+        self.nodes = f['nodes']
+        self.ordFlux = f['ordFluxes']
+        self.wN = f['weights']
+        self.nG = f['nGrp'].value
+        self.nNodes = self.ordFlux.shape[2]
+        self.computeAngleIntFlux()
+        self.computeTotFlux()
+
+    def computeAngleIntFlux(self):
+        """
+        Integrate over angle.  Requires ordinate weights.
+        """
+        self.angleIntFlux = np.zeros((self.ordFlux.shape[0], self.ordFlux.shape[2]))
+        for g in range(self.nG):
+            for i in range(self.nNodes):
+                self.angleIntFlux[g, i] = 0.25 * np.sum(self.wN * self.ordFlux[g, :, i])
+
+    def computeTotFlux(self):
+        """
+        Sum over all energy groups
+        """
+        self.totFlux = np.sum(self.angleIntFlux, axis=0)
+
+    def writeToVTK(self, fname):
+        from pyevtk.hl import pointsToVTK
+        pointsToVTK(fname, self.nodes[:, 1], self.nodes[:, 2], self.nodes[:, 3],
+                    data={"grp1": self.angleIntFlux[0, :],
+                          "grp2": self.angleIntFlux[1, :],
+                          "grp3": self.angleIntFlux[2, :],
+                          "grp4": self.angleIntFlux[3, :],
+                          "grp5": self.angleIntFlux[4, :],
+                          "grp6": self.angleIntFlux[5, :],
+                          "grp7": self.angleIntFlux[6, :],
+                          "grp8": self.angleIntFlux[7, :],
+                          "grp9": self.angleIntFlux[8, :],
+                          "grp10": self.angleIntFlux[9, :],
+                          "tot": self.totFlux[:]
+                          }
+                    )

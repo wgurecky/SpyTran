@@ -22,8 +22,8 @@ Plane Surface(11) = {11};
 Line Loop(12) = {6, 7, 8, 5};
 Ruled Surface(12) = {12};
 Physical Line(13) = {4};      // bc=bc1
-Physical Line(14) = {3};      // bc=bc1
-Physical Line(15) = {2};      // bc=bc1
-Physical Line(16) = {1};      // bc=bc1
+Physical Line(14) = {3};      // bc=bc2
+Physical Line(15) = {2};      // bc=bc3
+Physical Line(16) = {1};      // bc=bc4
 Physical Surface(17) = {12};  // mat=mat_1
 Physical Surface(18) = {11};  // mat=mat_2

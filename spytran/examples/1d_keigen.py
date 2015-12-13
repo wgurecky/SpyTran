@@ -13,7 +13,7 @@ import materials.materialMixxer as mx
 mx.genMaterialDict('./materials/newXS')
 
 # Solver settings
-sN, nG = 12, 10
+sN, nG = 2, 10
 
 # Geometry
 geoFile = pwdpath + '/geometry/1d_keigen.geo'
