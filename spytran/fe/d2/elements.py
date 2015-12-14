@@ -130,15 +130,15 @@ class d2InteriorElement(object):
         """
         firstTerm = self.buildFirstTerm(o)
         firstTerm[abs(firstTerm) < 1e-16] = 0.0
-        elemMatrix = firstTerm + \
-            ((1 / 24.) * totalXs[g] * (2.0 * self.area)) * self.feI2
+        elemMatrix = (1 / 3.) * self.area * firstTerm + \
+            ((1 / 24.) * totalXs[g] * (0.5 * self.area)) * self.feI2
         return self.elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
         """
         Produces right hand side of neutron balance for this element.
         """
-        elemRHS = (1 / 6.) * (2.0 * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
+        elemRHS = (1 / 6.) * (0.5 * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
         return self.elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
