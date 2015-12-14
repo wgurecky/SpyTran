@@ -56,6 +56,35 @@ class d2InteriorElement(object):
                 sys.exit("FATALITY: Invalid shape of source vector. Shape must be (nGrps, sNords).")
             else:
                 pass
+        #
+        # ELEMENT MATRIX INIT
+        self.elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
+                             (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
+                             (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
+        self.feI = np.array([[1, 1, 1], [-1, 1, 1], [-1, 1, 1]])
+        self.feI2 = np.array([[2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
+        self.elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
+
+    def buildFirstTerm(self, o):
+        #feI0 = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        #feI1 = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
+        feI0 = np.ones((3, 3), dtype=float)
+        feI1 = np.ones((3, 3), dtype=float)
+        for i in range(3):
+            for k in range(3):
+                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(i+1)%3, 1] - self.nodeVs[(i+2)%3, 1])
+                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(i+2)%3, 0] - self.nodeVs[(i+1)%3, 0])
+                nodeX, nodeY = self.nodeVs[i]
+                Bele = (1 / 6.) * self.Bele(nodeX, nodeY, k)
+                feI0[i, k] = self.sNmu[o] * gradFX * Bele
+                feI1[i, k] = self.sNeta[o] * gradFY * Bele
+        return feI0 + feI1
+
+    def Bele(self, x, y, k):
+        Bele = x * self.nodeVs[(k+1)%3, 1] - x * self.nodeVs[(k+2)%3, 1] - self.nodeVs[(k+1)%3, 0] * y + \
+                self.nodeVs[(k+1)%3, 0] * self.nodeVs[(k+2)%3, 1] + self.nodeVs[(k+2)%3, 0] * y - \
+                self.nodeVs[(k+2)%3, 0] * self.nodeVs[(k+1)%3, 1]
+        return Bele
 
     def updateFluxes(self, fluxStor):
         self.setEleScFlux(fluxStor[0])
@@ -99,24 +128,18 @@ class d2InteriorElement(object):
         gives row collum tuples of where to locate the element matrix entries in
         the complete system 'A' matrix.
         """
-        elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
-                        (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
-                        (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
-        feI = - np.array([[1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
-        feI2 = np.array([[2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
-        elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
-            ((1 / 24.) * totalXs[g] * (0.5 * self.area)) * feI2
-        return elemIDmatrix, elemMatrix.flatten()
+        firstTerm = self.buildFirstTerm(o)
+        firstTerm[abs(firstTerm) < 1e-16] = 0.0
+        elemMatrix = firstTerm + \
+            ((1 / 24.) * totalXs[g] * (2.0 * self.area)) * self.feI2
+        return self.elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
         """
         Produces right hand side of neutron balance for this element.
         """
-        elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
-        #J = np.array([[np.nodeVs[1, 0] - np.nodeVs[0, 0]], [np.nodeVs[2, 0] - np.nodeVs[0, 0]],
-        #              [np.nodeVs[1, 1] - np.nodeVs[0, 1]], [np.nodeVs[2, 1] - np.nodeVs[0, 1]]])
-        elemRHS = (1 / 6.) * (1. * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
-        return elemIDRHS, elemRHS
+        elemRHS = (1 / 6.) * (2.0 * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
+        return self.elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
         self.centTotFlux *= 0
@@ -283,7 +306,14 @@ class d2BoundaryElement(object):
     def computeOutNormal(self):
         # obtain node(s) that are common between parent ele and boundary.
         commonNodeV = self._computeArrayIntersection(self.parent.nodeVs, self.nodeVs)
-        self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
+        self.internalBCnodeIDs = np.zeros(2, dtype=int)  # must pull from the external common nodes IDS!
+        k = 0
+        for i, nodeV in enumerate(self.parent.nodeVs):
+            for commonV in commonNodeV:
+                if np.allclose(nodeV, commonV):
+                    self.internalBCnodeIDs[k] = i
+                    k += 1
+        #self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
         lonelyNodeV = self._computeArrayDiff(self.parent.nodeVs, self.nodeVs)
         # determine outward normal
         deltaX = self.nodeVs[1, 0] - self.nodeVs[0, 0]
@@ -307,7 +337,7 @@ class d2BoundaryElement(object):
             vec = c2
         vec = vec / np.linalg.norm(vec)   # norm vec
         # given as standard [nu, eta, ksi] set
-        self.outwardNormal = np.array([vec[0], vec[1], 0])
+        self.outwardNormal = -np.array([vec[0], vec[1], 0])
         self.outwardNormal[abs(self.outwardNormal) < 1e-4] = 0
 
     def _computeArrayIntersection(self, a, b):
