@@ -102,10 +102,10 @@ class d2InteriorElement(object):
         elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
                         (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                         (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
-        feI = np.array([[-1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
+        feI = - np.array([[1, 1, 1], [-1, 1, 1], [-1, -1, 1]])
         feI2 = np.array([[2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
         elemMatrix = ((1 / 3.) * self.sNmu[o]) * feI + ((1 / 3.) * self.sNeta[o]) * feI + \
-            ((1 / 24.) * totalXs[g] * (1. * self.area)) * feI2
+            ((1 / 24.) * totalXs[g] * (0.5 * self.area)) * feI2
         return elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
@@ -164,24 +164,22 @@ class d2InteriorElement(object):
         weights[0] = (2 - self.C) * ggprimeInScatter
         scSource = np.sum(weights.T * self.quadSet.Ylm, axis=(0, 1))
         #
-        #S = np.zeros(self.qin.shape[1])
-        #for n in range(0, self.qin.shape[1]):
-        #    for gp in range(self.nG):
-        #        for l in range(self.maxLegOrder + 1):
-        #            S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
-        #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        S = np.zeros(self.qin.shape[1])
+        for n in range(0, self.qin.shape[1]):
+            for gp in range(self.nG):
+                for l in range(self.maxLegOrder + 1):
+                    S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         #return S
         return scSource
 
     def _evalFluxMoments(self, l, m, gp):
-        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centScFlux[gp, :])
+        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[l, m, :] * self.centScFlux[gp, :])
 
     def _innerSum(self, n, l, gp):
         isum = 0.
-        #c = np.zeros(l + 1)
-        #c[0] = -1.
-        for m in range(0, l):
-            isum += np.sum((2 - self.C[m]) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
+        for m in range(0, l + 1):
+            isum += np.sum((2 - self.C[m]) * self.quadSet.Ylm[l, m, n] * self._evalFluxMoments(l, m, gp))
         return isum
 
     def _computeFissionSource(self, g, chiNuFission, keff):

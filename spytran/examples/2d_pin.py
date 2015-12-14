@@ -28,10 +28,10 @@ materialDict = {'mat_1': pinMaterial,
                 'mat_3': modMat}
 
 # Boundary conditions
-bcDict = {'bc1': 'vac',
-          'bc2': 'vac',
-          'bc3': 'vac',
-          'bc4': 'vac'}
+bcDict = {'bc1': 'ref',
+          'bc2': 'ref',
+          'bc3': 'ref',
+          'bc4': 'ref'}
 
 # Volumetric sources
 srcDict = {'mat_1': 'fission',

@@ -159,14 +159,15 @@ def createLegArray(sNmu, lMax):
 
 def createSphrHarm(mu, omega, lMax=8):
     sphArray = np.zeros((lMax + 1, lMax + 1, len(mu)))
-    for m in range(lMax + 1):
-        for l in range(lMax + 1):
+    for l in range(lMax + 1):
+        for m in range(lMax + 1):
             # loop over legendre order
             for i, (mmu, om) in enumerate(zip(mu, omega)):
                 try:
                     C = (2 * l + 1) * float(msc.factorial(l - m)) / \
                         float(msc.factorial(l + m))
                     #sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.exp(complex(om * m)))
+                    #sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.cos(om * m))
                     sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.cos(om * m))
                     #sphArray[m, l, i] = spc.sph_harm(m, l, mmu, om).real
                 except:
