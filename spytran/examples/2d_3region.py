@@ -48,4 +48,4 @@ slv.writeData(pwdpath + '/output/2Dtestout.h5')
 # Plot
 from fe.post import Fe2DOutput as fe2Dplt
 plotter = fe2Dplt(pwdpath + '/output/2Dtestout.h5')
-plotter.writeToVTK(fname=pwdpath + '/output/2Dregion')
+plotter.writeToVTK(fname=pwdpath + '/output/2Dmregion')
