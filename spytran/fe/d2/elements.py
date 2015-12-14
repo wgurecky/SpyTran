@@ -174,12 +174,12 @@ class d2InteriorElement(object):
         return scSource
 
     def _evalFluxMoments(self, l, m, gp):
-        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[l, m, :] * self.centScFlux[gp, :])
+        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centScFlux[gp, :])
 
     def _innerSum(self, n, l, gp):
         isum = 0.
         for m in range(0, l + 1):
-            isum += np.sum((2 - self.C[m]) * self.quadSet.Ylm[l, m, n] * self._evalFluxMoments(l, m, gp))
+            isum += np.sum((2 - self.C[m]) * self.quadSet.Ylm[m, l, n] * self._evalFluxMoments(l, m, gp))
         return isum
 
     def _computeFissionSource(self, g, chiNuFission, keff):
