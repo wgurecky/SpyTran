@@ -43,7 +43,7 @@ class D2quadSet(object):
         for ordi in self.ords:
             ordi.computeReflectivePartners(self.ords)
         self.collectProps()
-        self.Ylm = createSphrHarm(self.mus, self.etas, 8)
+        self.Ylm = createSphrHarm(self.mus, self.omegas, 8)
         self.wN = self.wgts
 
     def _computeAngles(self, o):
