@@ -72,10 +72,10 @@ class d2InteriorElement(object):
         feI1 = np.ones((3, 3), dtype=float)
         for i in range(3):
             for k in range(3):
-                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(i+1)%3, 1] - self.nodeVs[(i+2)%3, 1])
-                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(i+2)%3, 0] - self.nodeVs[(i+1)%3, 0])
+                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(k+1)%3, 1] - self.nodeVs[(k+2)%3, 1])
+                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(k+2)%3, 0] - self.nodeVs[(k+1)%3, 0])
                 nodeX, nodeY = self.nodeVs[i]
-                Bele = (1 / 6.) * self.Bele(nodeX, nodeY, k)
+                Bele = (1 / 6.) * self.Bele(nodeX, nodeY, i)
                 feI0[i, k] = self.sNmu[o] * gradFX * Bele
                 feI1[i, k] = self.sNeta[o] * gradFY * Bele
         return feI0 + feI1
@@ -130,15 +130,15 @@ class d2InteriorElement(object):
         """
         firstTerm = self.buildFirstTerm(o)
         firstTerm[abs(firstTerm) < 1e-16] = 0.0
-        elemMatrix = (1 / 3.) * self.area * firstTerm + \
-            ((1 / 24.) * totalXs[g] * (0.5 * self.area)) * self.feI2
+        elemMatrix = (1 / 12.) * firstTerm + \
+            ((1 / 24.) * totalXs[g] * ((2.0) * self.area)) * self.feI2
         return self.elemIDmatrix, elemMatrix.flatten()
 
     def getRHS(self, g, o):
         """
         Produces right hand side of neutron balance for this element.
         """
-        elemRHS = (1 / 6.) * (0.5 * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
+        elemRHS = (1 / 6.) * ((2.0) * self.area) * np.array([self.qin[g, o], self.qin[g, o], self.qin[g, o]])
         return self.elemIDRHS, elemRHS
 
     def resetTotOrdFlux(self):
