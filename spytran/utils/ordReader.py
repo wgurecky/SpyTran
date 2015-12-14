@@ -167,7 +167,6 @@ def createSphrHarm(mu, omega, lMax=8):
                     C = (2 * l + 1) * float(msc.factorial(l - m)) / \
                         float(msc.factorial(l + m))
                     #sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.exp(complex(om * m)))
-                    #sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.cos(om * m))
                     sphArray[m, l, i] = np.real(C ** (0.5) * spc.lpmv(m, l, mmu) * np.cos(om * m))
                     #sphArray[m, l, i] = spc.sph_harm(m, l, mmu, om).real
                 except:

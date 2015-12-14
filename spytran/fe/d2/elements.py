@@ -158,23 +158,23 @@ class d2InteriorElement(object):
         operations with 0 _python_ for loops.  all in numpy!
         """
         # Ylm[m, l, ord]
-        #b = 0.25 * np.dot(self.wN * self.legArray[:, :], self.centScFlux[:, :].T)
         fluxM = 0.25 * np.dot(self.wN * self.quadSet.Ylm[:, :, :], self.centScFlux[:, :].T)
         ggprimeInScatter = np.sum(skernel[:, G, :] * fluxM, axis=2)
-        weights[0] = (2 - self.C) * ggprimeInScatter
-        scSource = np.sum(weights.T * self.quadSet.Ylm, axis=(0, 1))
+        weights[0] = (2 - self.C) * np.swapaxes(ggprimeInScatter, 1, 0)
+        scs1 = np.sum(weights.T * self.quadSet.Ylm, axis=(1, 0))
         #
-        S = np.zeros(self.qin.shape[1])
-        for n in range(0, self.qin.shape[1]):
-            for gp in range(self.nG):
-                for l in range(self.maxLegOrder + 1):
-                    S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        # OLD SCATTER SOURCE (FOR CROSS CHECKING)
+        #S = np.zeros(self.qin.shape[1])
+        #for n in range(0, self.qin.shape[1]):
+        #    for gp in range(self.nG):
+        #        for l in range(self.maxLegOrder + 1):
+        #            S[n] += skernel[l, G, gp] * self._innerSum(n, l, gp)
         #return S
-        return scSource
+        return scs1
 
     def _evalFluxMoments(self, l, m, gp):
-        return 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centScFlux[gp, :])
+        fluxM = 0.25 * np.sum(self.wN * self.quadSet.Ylm[m, l, :] * self.centScFlux[gp, :])
+        return fluxM
 
     def _innerSum(self, n, l, gp):
         isum = 0.
