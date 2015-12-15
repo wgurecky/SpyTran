@@ -38,7 +38,7 @@ class D1solver(object):
             norms, times = self.solver.solveFlux()
             totScTime += times[0]
             totLsTime += times[1]
-            print("       " + "{:.4e}".format(norms) + "              " +
+            print("i= " + str(i) + "   " + "{:.4e}".format(norms) + "              " +
                   "{:.2e}".format(times[1]) + "           " +
                   "{:.2e}".format(times[0]))
             if norms < residTol:

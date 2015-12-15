@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import utils.hdf5dump as h5d
 from plotters import scalarFluxPlot as sfp
 
 
@@ -29,11 +30,17 @@ class Fe1DOutput(object):
         """
         self.totFlux = np.sum(self.angleIntFlux, axis=0)
 
-    def genFluxTable(self):
+    def genFluxTable(self, fname="1dFEhdfoutput.h5"):
         """
         Create position vs flux table. Human readable / paste into excel
         """
-        pass
+        h5data = {}
+        for g in range(10):
+            plotData = np.array([self.nodes[:, 1], self.angleIntFlux[g]])
+            plotData = plotData[:, np.argsort(plotData[0])]
+            h5data["mesh" + str(g)] = plotData[0]
+            h5data["groupFlx" + str(g)] = plotData[1]
+        h5d.writeToHdf5(h5data, fname)
 
     def plotScalarFlux(self, g, fname='scflx'):
         """

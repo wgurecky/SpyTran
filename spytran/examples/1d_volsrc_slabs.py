@@ -39,7 +39,7 @@ srcDict = {'mat_1': None,
 slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN)
 
 # Solve
-slv.trSolve(residTol=1e-5)
+slv.trSolve(residTol=1e-7)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot
@@ -48,3 +48,4 @@ plotter = fe1Dplt(pwdpath + '/output/1Dtestout.h5')
 for i in range(nG):
     plotter.plotScalarFlux(i, fname=pwdpath + '/output/scflux.png')
 plotter.plotTotalFlux(fname=pwdpath + '/output/totflux.png')
+plotter.genFluxTable(fname=pwdpath + '/output/1dfedata.h5')

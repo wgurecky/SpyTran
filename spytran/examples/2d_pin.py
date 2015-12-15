@@ -54,7 +54,7 @@ slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict,
                        nG=nG, sN=sN, dim=2)
 
 # Solve
-slv.kSolve(residTol=1e-6, kTol=1e-5, outerIterMax=5)
+slv.kSolve(residTol=1e-6, kTol=1e-5, outerIterMax=6)
 slv.writeData(pwdpath + '/output/2Dpintest.h5')
 
 # Plot
