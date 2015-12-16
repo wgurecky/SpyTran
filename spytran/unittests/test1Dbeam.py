@@ -19,7 +19,7 @@ class test1Dbeam(unittest.TestCase):
     def testAtten(self):
         print("\n========= INITIATING BEAM TEST ==========")
         width, dX = 50.0, 0.4
-        sNord = 32
+        sNord = 8
         attnMat = mx.mixedMat({'c12': 1.0})
         attnMat.setDensity(2.24)
         print(attnMat.nDdict)
@@ -31,7 +31,7 @@ class test1Dbeam(unittest.TestCase):
         bcs = {0: {'fixN': (1, [srcStrength, srcEnergy])},
                -1: {'vac': (2, 0)}}
         mesh1D.setBCs(bcs)
-        for si in range(180):
+        for si in range(1):
             resid = mesh1D.sweepMesh(1)
             if resid < 1e-5:
                 break
