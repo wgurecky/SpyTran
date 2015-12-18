@@ -61,29 +61,26 @@ class d2InteriorElement(object):
         self.elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]), (self.nodeIDs[0], self.nodeIDs[2]),
                              (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1]), (self.nodeIDs[1], self.nodeIDs[2]),
                              (self.nodeIDs[2], self.nodeIDs[0]), (self.nodeIDs[2], self.nodeIDs[1]), (self.nodeIDs[2], self.nodeIDs[2])]
-        self.feI = np.array([[1, 1, 1], [-1, 1, 1], [-1, 1, 1]])
+        self.feI0 = np.ones((3, 3), dtype=float)
+        self.feI1 = np.ones((3, 3), dtype=float)
         self.feI2 = np.array([[2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [1.0, 1.0, 2.0]])
         self.elemIDRHS = np.array([self.nodeIDs[0], self.nodeIDs[1], self.nodeIDs[2]])
 
     def buildFirstTerm(self, o):
-        #feI0 = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        #feI1 = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        feI0 = np.ones((3, 3), dtype=float)
-        feI1 = np.ones((3, 3), dtype=float)
         for i in range(3):
             for k in range(3):
-                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(k+1)%3, 1] - self.nodeVs[(k+2)%3, 1])
-                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(k+2)%3, 0] - self.nodeVs[(k+1)%3, 0])
+                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(k+1) % 3, 1] - self.nodeVs[(k+2) % 3, 1])
+                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(k+2) % 3, 0] - self.nodeVs[(k+1) % 3, 0])
                 nodeX, nodeY = self.nodeVs[i]
                 Bele = (1 / 6.) * self.Bele(nodeX, nodeY, i)
-                feI0[i, k] = self.sNmu[o] * gradFX * Bele
-                feI1[i, k] = self.sNeta[o] * gradFY * Bele
-        return feI0 + feI1
+                self.feI0[i, k] = self.sNmu[o] * gradFX * Bele
+                self.feI1[i, k] = self.sNeta[o] * gradFY * Bele
+        return self.feI0 + self.feI1
 
     def Bele(self, x, y, k):
-        Bele = x * self.nodeVs[(k+1)%3, 1] - x * self.nodeVs[(k+2)%3, 1] - self.nodeVs[(k+1)%3, 0] * y + \
-                self.nodeVs[(k+1)%3, 0] * self.nodeVs[(k+2)%3, 1] + self.nodeVs[(k+2)%3, 0] * y - \
-                self.nodeVs[(k+2)%3, 0] * self.nodeVs[(k+1)%3, 1]
+        Bele = x * self.nodeVs[(k+1) % 3, 1] - x * self.nodeVs[(k+2) % 3, 1] - self.nodeVs[(k+1) % 3, 0] * y + \
+            self.nodeVs[(k+1) % 3, 0] * self.nodeVs[(k+2) % 3, 1] + self.nodeVs[(k+2) % 3, 0] * y - \
+            self.nodeVs[(k+2) % 3, 0] * self.nodeVs[(k+1) % 3, 1]
         return Bele
 
     def updateFluxes(self, fluxStor):
@@ -159,7 +156,6 @@ class d2InteriorElement(object):
             :return: return notes
             :rtype: return type
         """
-        #weights = np.array([np.zeros(self.maxLegOrder + 1)])
         weights = np.array([np.zeros((self.maxLegOrder + 1, self.maxLegOrder + 1))])
         lw = np.arange(self.maxLegOrder + 1)
         if depth >= 1:
@@ -211,7 +207,7 @@ class d2InteriorElement(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            return (1 / keff / 12.0 / (1.0)) * \
+            return (1 / keff / float(self.sNords) / (1.0)) * \
                 np.sum(chiNuFission[g] * self._evalCentTotAngleInt(g))
         else:
             # need fixed source from user input
@@ -293,10 +289,6 @@ class d2BoundaryElement(object):
             return self.vacBC2A(A)
         elif self.bcData is 'ref':
             return self.vacBC2A(A)
-            #if depth == 0:
-            #    return self.vacBC2A(A)
-            #else:
-            #    return self.fixedBC2A(A)
         elif type(self.bcData) is np.ndarray:
             if depth == 0:
                 return self.fixedBC2A(A)
@@ -313,15 +305,12 @@ class d2BoundaryElement(object):
                 if np.allclose(nodeV, commonV):
                     self.internalBCnodeIDs[k] = i
                     k += 1
-        #self.internalBCnodeIDs = np.array([np.where(cV == self.parent.nodeVs) for cV in commonNodeV])[:, 0, 0]
         lonelyNodeV = self._computeArrayDiff(self.parent.nodeVs, self.nodeVs)
         # determine outward normal
         deltaX = self.nodeVs[1, 0] - self.nodeVs[0, 0]
         deltaY = self.nodeVs[1, 1] - self.nodeVs[0, 1]
         # we have 2 canidate vectors: (in 3D we would use np.cross to find perp
         # vectors to a surface, but in 2d its simpler than that)
-        #c1 = np.array([-deltaX, deltaY])
-        #c2 = np.array([deltaX, -deltaY])
         #
         c1 = np.array([-deltaY, deltaX])
         c2 = np.array([deltaY, -deltaX])
@@ -389,9 +378,7 @@ class d2BoundaryElement(object):
         RHS for all groups, g,  and for inward facing ordinates, are set to
         zero.
         """
-        # TODO: FIX multiple element assignment in 2d!!
         RHS[np.ix_(self.nGv, self.inOs, self.nodeIDs)] = 0
-        #RHS[:, self.inOs, self.nodeIDs] = 0   # does not work if len(inOs) != len(nodeIDs)
         return RHS
 
     def refBC(self, RHS):
@@ -401,7 +388,6 @@ class d2BoundaryElement(object):
         """
         RHS[np.ix_(self.nGv, self.inOs, self.nodeIDs)] = \
             self.bankedRefFlux[np.ix_(self.nGv, self.inOs, self.internalBCnodeIDs)]
-        #RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
         return RHS
 
     def dirichletBC(self, RHS):
@@ -429,7 +415,5 @@ class d2BoundaryElement(object):
             print("Can only handle boundaries perpendicular to x or y axis at the moment")
             print("Future: add arbitrary bc orientation capability")
             sys.exit()
-        #self.bankedRefFlux[:, inDirs, self.internalBCnodeIDs] = \
-        #    self.parent.nodeScFlux[:, outDirs, self.internalBCnodeIDs]
         self.bankedRefFlux[np.ix_(self.nGv, inDirs, self.internalBCnodeIDs)] = \
             self.parent.nodeScFlux[np.ix_(self.nGv, outDirs, self.internalBCnodeIDs)]

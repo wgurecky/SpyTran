@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import time
 import utils.hdf5dump as h5d
 from utils.ordReader import gaussLegQuadSet
@@ -7,6 +8,7 @@ from utils.gmshPreproc import gmsh1DMesh
 from utils.gmshPreproc import gmsh2DMesh
 from mesh import SuperMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
+warnings.filterwarnings("ignore")
 
 
 class SnFeSlv(object):
@@ -104,13 +106,13 @@ class SnFeSlv(object):
         """
         self._initkEig()
         for i in range(120):
-            # perform scattering src iterations untill flux tol falls below spcified rtol
+            # perform scattering src iterations until flux tol falls below spcified rtol
             self.scatterSource()
             self.solveFlux()
             if verbosity == 1 and i % 1 == 0:
-                print("Time Lin Solver: " + str(self.timeLinSolver) + " [s]")
-                print("Time Scatter it: " + str(self.timeScatter) + " [s]")
-                print("Scatter iteration " + "{0: <4}".format(i) + "  resid norm= " + "{:.4e}".format(self.norm))
+                print("{0: <3}".format(str(i)) + "        " + "{:.4e}".format(self.norm) + "              " +
+                      "{:.2e}".format(self.timeLinSolver) + "           " +
+                      "{:.2e}".format(self.timeScatter))
             if self.norm <= rTol:
                 break
         self.depth = 0

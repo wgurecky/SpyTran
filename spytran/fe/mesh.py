@@ -52,11 +52,11 @@ class SuperMesh(object):
             for o in range(self.sNords):
                 self.sysA[g, o] = self.constructA(g, o)
                 if depth <= 1:
-                    self.sysA[g, o] = sps.csc_matrix(self.sysA[g, o])
                     self.computePrecon(g, o)
+                if depth == 1:
+                    self.sysA[g, o] = sps.csc_matrix(self.sysA[g, o])
 
     def computePrecon(self, g, o):
-        #self.sysP[g, o] = spl.inv(self.sysA[g, o] * sps.eye(self.nNodes))
         M_x = lambda x: spl.spsolve(self.sysA[g, o] * sps.eye(self.nNodes), x)
         self.sysP[g, o] = spl.LinearOperator((self.nNodes, self.nNodes), M_x)
 
@@ -76,8 +76,6 @@ class SuperMesh(object):
             for o in range(self.sNords):
                 self.scFluxField[g, o], Aresid = \
                     spl.gmres(self.sysA[g, o], self.sysRHS[g, o], tol=tolr, M=self.sysP[g, o])
-                #self.scFluxField[g, o] = \
-                #    spl.spsolve(self.sysA[g, o], self.sysRHS[g, o])
                 if Aresid > 0:
                     print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(Aresid))
         self.totFluxField += self.scFluxField
@@ -143,7 +141,6 @@ class RegionMesh(object):
         self.elements = {}
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
-            #nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
             if self.dim == 1:
                 nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                 self.elements[element[0]] = d1InteriorElement((nodeIDs, nodePos), fluxStor, source, **kwargs)
@@ -191,7 +188,6 @@ class RegionMesh(object):
         for elementID, element in self.elements.iteritems():
             nodeIDs, RHSvals = element.getRHS(g, o)
             for nodeID, RHSval in zip(nodeIDs, RHSvals):
-                #RHS[g, o, nodeID] = RHSval
                 RHS[g, o, nodeID] += RHSval
         return RHS
 
@@ -229,5 +225,4 @@ class RegionMesh(object):
                     fissionSrc += self.nuFission[g] * element.deltaX * element._evalCentTotAngleInt(g)
                 elif self.dim == 2:
                     fissionSrc += self.nuFission[g] * element.area * element._evalCentTotAngleInt(g)
-        #return np.dot(self.nuFission, self.getCellVols() * self.getTotScalarFlux().T)
         return fissionSrc
