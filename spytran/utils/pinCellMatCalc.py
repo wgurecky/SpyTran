@@ -2,7 +2,7 @@
 
 
 import numpy as np
-import materials.materialMixxer as mx
+import spytran.materials.materialMixxer as mx
 from copy import deepcopy
 
 

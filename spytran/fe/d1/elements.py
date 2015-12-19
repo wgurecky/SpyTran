@@ -1,7 +1,7 @@
 import numpy as np
 from copy import deepcopy
 import sys
-from utils.ordReader import createLegArray
+from spytran.utils.ordReader import createLegArray
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 

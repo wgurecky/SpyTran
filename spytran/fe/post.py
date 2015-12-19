@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
-import utils.hdf5dump as h5d
-from plotters import scalarFluxPlot as sfp
+import spytran.utils.hdf5dump as h5d
+from spytran.plotters import scalarFluxPlot as sfp
 
 
 class Fe1DOutput(object):

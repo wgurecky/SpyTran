@@ -2,6 +2,11 @@ import numpy as np
 from copy import deepcopy
 import sys
 np.set_printoptions(linewidth=200)  # set print to screen opts
+# To use anaconda/numba
+# make an anaconda env:
+# go to anaconda install dir: /opt/anaconda2
+# $conda create -n py2k python=2 anaconda
+# $source activate py2k
 
 
 class d2InteriorElement(object):
@@ -69,8 +74,8 @@ class d2InteriorElement(object):
     def buildFirstTerm(self, o):
         for i in range(3):
             for k in range(3):
-                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(k+1) % 3, 1] - self.nodeVs[(k+2) % 3, 1])
-                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(k+2) % 3, 0] - self.nodeVs[(k+1) % 3, 0])
+                gradFX = (1 / (2 * self.area)) * (self.nodeVs[(k + 1) % 3, 1] - self.nodeVs[(k + 2) % 3, 1])
+                gradFY = (1 / (2 * self.area)) * (self.nodeVs[(k + 2) % 3, 0] - self.nodeVs[(k + 1) % 3, 0])
                 nodeX, nodeY = self.nodeVs[i]
                 Bele = (1 / 6.) * self.Bele(nodeX, nodeY, i)
                 self.feI0[i, k] = self.sNmu[o] * gradFX * Bele
@@ -78,9 +83,9 @@ class d2InteriorElement(object):
         return self.feI0 + self.feI1
 
     def Bele(self, x, y, k):
-        Bele = x * self.nodeVs[(k+1) % 3, 1] - x * self.nodeVs[(k+2) % 3, 1] - self.nodeVs[(k+1) % 3, 0] * y + \
-            self.nodeVs[(k+1) % 3, 0] * self.nodeVs[(k+2) % 3, 1] + self.nodeVs[(k+2) % 3, 0] * y - \
-            self.nodeVs[(k+2) % 3, 0] * self.nodeVs[(k+1) % 3, 1]
+        Bele = x * self.nodeVs[(k + 1) % 3, 1] - x * self.nodeVs[(k + 2) % 3, 1] - self.nodeVs[(k + 1) % 3, 0] * y + \
+            self.nodeVs[(k + 1) % 3, 0] * self.nodeVs[(k + 2) % 3, 1] + self.nodeVs[(k + 2) % 3, 0] * y - \
+            self.nodeVs[(k + 2) % 3, 0] * self.nodeVs[(k + 1) % 3, 1]
         return Bele
 
     def updateFluxes(self, fluxStor):

@@ -3,14 +3,13 @@
 #   python -m examples.1d_keigen
 #
 
-import spyTran as spytran
-#import numpy as np
+import spytran.spyTran as spytran
 import os
 pwdpath = os.path.dirname(os.path.realpath(__file__))
 
 # Load xs database
-import materials.materialMixxer as mx
-mx.genMaterialDict('./materials/newXS')
+import spytran.materials.materialMixxer as mx
+mx.genMaterialDict('../materials/newXS')
 
 # Solver settings
 sN, nG = 2, 10
@@ -19,7 +18,7 @@ sN, nG = 2, 10
 geoFile = pwdpath + '/geometry/1d_keigen.geo'
 
 # Materials
-import utils.pinCellMatCalc as pcm
+import spytran.utils.pinCellMatCalc as pcm
 pinMaterial = pcm.createPinCellMat()
 materialDict = {'mat_1': pinMaterial,
                 'mat_2': pinMaterial}
@@ -40,7 +39,7 @@ slv.kSolve(residTol=1e-6, kTol=1e-5)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot
-from fe.post import Fe1DOutput as fe1Dplt
+from spytran.fe.post import Fe1DOutput as fe1Dplt
 plotter = fe1Dplt(pwdpath + '/output/1Dtestout.h5')
 for i in range(nG):
     plotter.plotScalarFlux(i, fname=pwdpath + '/output/scflux.png')

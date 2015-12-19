@@ -3,14 +3,14 @@
 #   python -m examples.1d_keigen
 #
 
-import spyTran as spytran
+import spytran.spyTran as spytran
 #import numpy as np
 import os
 pwdpath = os.path.dirname(os.path.realpath(__file__))
 
 # Load xs database
-import materials.materialMixxer as mx
-mx.genMaterialDict('./materials/newXS')
+import spytran.materials.materialMixxer as mx
+mx.genMaterialDict('../materials/newXS')
 
 # Solver settings
 sN, nG = 4, 10
@@ -54,10 +54,10 @@ slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict,
                        nG=nG, sN=sN, dim=2)
 
 # Solve
-slv.kSolve(residTol=1e-6, kTol=1e-5, outerIterMax=6)
+slv.kSolve(residTol=1e-5, kTol=1e-5, outerIterMax=5)
 slv.writeData(pwdpath + '/output/2Dpintest.h5')
 
 # Plot
-from fe.post import Fe2DOutput as fe2Dplt
+from spytran.fe.post import Fe2DOutput as fe2Dplt
 plotter = fe2Dplt(pwdpath + '/output/2Dpintest.h5')
 plotter.writeToVTK(fname=pwdpath + '/output/2Dpin')

@@ -46,7 +46,7 @@ class SuperMesh(object):
                     self.sysRHS = region.buildRegionRHS(self.sysRHS, g, o)
 
     def buildSysMatrix(self, depth):
-        self.sysA = np.empty((self.nG, self.sNords), dtype=sps.dok.dok_matrix)
+        self.sysA = np.empty((self.nG, self.sNords), dtype=sps.lil.lil_matrix)
         self.sysP = np.empty((self.nG, self.sNords), dtype=object)
         for g in range(self.nG):
             for o in range(self.sNords):
@@ -61,7 +61,7 @@ class SuperMesh(object):
         self.sysP[g, o] = spl.LinearOperator((self.nNodes, self.nNodes), M_x)
 
     def constructA(self, g, o):
-        A = sps.dok_matrix((self.nNodes, self.nNodes))
+        A = sps.lil_matrix((self.nNodes, self.nNodes))
         for regionID, region in self.regions.iteritems():
             A = region.buildRegionA(A, g, o)
         return A
@@ -175,6 +175,7 @@ class RegionMesh(object):
         """
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
+            #A[np.ix_(np.array(nodeIDs)[:, 0], np.array(nodeIDs)[:, 1])] += sysVals
             for nodeID, sysVal in zip(nodeIDs, sysVals):
                 A[nodeID] += sysVal
         return A

@@ -1,11 +1,11 @@
 import numpy as np
 import warnings
 import time
-import utils.hdf5dump as h5d
-from utils.ordReader import gaussLegQuadSet
-from utils.ordReader import D2quadSet
-from utils.gmshPreproc import gmsh1DMesh
-from utils.gmshPreproc import gmsh2DMesh
+import spytran.utils.hdf5dump as h5d
+from spytran.utils.ordReader import gaussLegQuadSet
+from spytran.utils.ordReader import D2quadSet
+from spytran.utils.gmshPreproc import gmsh1DMesh
+from spytran.utils.gmshPreproc import gmsh2DMesh
 from mesh import SuperMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
 warnings.filterwarnings("ignore")

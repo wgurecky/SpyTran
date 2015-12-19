@@ -8,7 +8,7 @@
 
 from setuptools import setup, find_packages
 setup(
-    name="SPyTran",
+    name="spytran",
     version="0.1",
     packages=find_packages(),
     install_requires=['numpy>=1.7.0', 'scipy>=0.12.0', 'h5py'],
