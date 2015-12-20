@@ -212,7 +212,7 @@ class d2InteriorElement(object):
         chiNuFission[g] is a row vector corresponding to all g'
         """
         if self.multiplying:
-            return (1 / keff / float(self.sNords) / (1.0)) * \
+            return (1 / keff / float(12.) / (1.0)) * \
                 np.sum(chiNuFission[g] * self._evalCentTotAngleInt(g))
         else:
             # need fixed source from user input

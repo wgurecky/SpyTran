@@ -12,7 +12,7 @@ import spytran.materials.materialMixxer as mx
 mx.genMaterialDict('../materials/newXS')
 
 # Solver settings
-sN, nG = 4, 10
+sN, nG = 6, 10
 
 # Geometry
 geoFile = pwdpath + '/geometry/2d_simple.geo'

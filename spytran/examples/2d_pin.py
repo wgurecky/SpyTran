@@ -4,7 +4,6 @@
 #
 
 import spytran.spyTran as spytran
-#import numpy as np
 import os
 pwdpath = os.path.dirname(os.path.realpath(__file__))
 
@@ -26,6 +25,8 @@ heuUO2 = mx.mixedMat({'u235': 1 / 3., 'o16': 2 / 3.})
 heuUO2.setDensity(10.35)
 fuelMat = 0.964 * duUO2 + 0.036 * heuUO2
 fuelMat.setDensity(10.35)
+# self shield fuel material
+fuelMat.selfSheild()
 # create cladding mixture
 cladMat = mx.mixedMat({'zr90': 1.0})
 cladMat.setDensity(5.87)
