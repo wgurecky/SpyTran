@@ -23,7 +23,7 @@ class D2quadSet(object):
     """
     octWeightMap = {8: [[0.1209877, ((0, 0), (0, 3), (3, 0))],
                         [0.0907407, ((0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1))],
-                        [0.0925926, ((1, 1))]],
+                        [0.0925926, ((1, 1), )]],
                     6: [[0.1761263, ((0, 0), (0, 2), (2, 0))],
                         [0.1572071, ((0, 1), (1, 0), (1, 1))]],
                     4: [[1 / 3., ((0, 0), (0, 1), (1, 0))]]
@@ -66,7 +66,6 @@ class D2quadSet(object):
                 self.octVariations.append([i, j])
                 self.octWeights.append(self.findWeight(i, j))
         self.octVariations = np.array(self.octVariations)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     def findWeight(self, i, j):
         for row in self.octWeightMap[self.sN]:
