@@ -4,7 +4,6 @@ import os
 
 matLib = {}
 try:
-    raise
     import isoDictGen as isoGen
     matLib = isoGen.genIsoDict()
 except:
