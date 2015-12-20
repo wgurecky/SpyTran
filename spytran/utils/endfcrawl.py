@@ -11,12 +11,12 @@ import mechanize as mz
 import re
 
 
-#outdir = 'endfvii/'
-outdir = 'endfvi/'
+outdir = 'endfvii/'
+#outdir = 'endfvi/'
 
 # Set target page
-#target = 'http://t2.lanl.gov/nis/data/endf/endfvii-n.html'
-target = 'http://t2.lanl.gov/nis/data/endf/endfvi-n.html'
+target = 'http://t2.lanl.gov/nis/data/endf/endfvii-n.html'
+#target = 'http://t2.lanl.gov/nis/data/endf/endfvi-n.html'
 
 # Open up browser instance
 br = mz.Browser()
