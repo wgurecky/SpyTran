@@ -105,7 +105,7 @@ class SnFeSlv(object):
         Perform a single k-eigen update.  If k is stationary, return true for kconverged
         """
         self._initkEig()
-        for i in range(120):
+        for i in range(150):
             # perform scattering src iterations until flux tol falls below spcified rtol
             self.scatterSource()
             self.solveFlux()

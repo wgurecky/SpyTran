@@ -46,14 +46,15 @@ Example input file execution::
 Material Library
 ++++++++++++++++
 
-A list of avalible isotopes is located ``/spytran/materials/``.  The default cross sections
+The default 10 energy group cross section libary is located ``/spytran/materials/default``.  The default cross sections
 are generated at 293K.
 
 Dopper broadening is performed by the NJOY broadr module.  NJOY bash scripts are provided in ``/spytran/utils``.
 Simple inf-media self sheilding is implemented by f-factor lookup.  See the
 2d_pin example file for a self sheilded material example (by default inf
 dilution xs used - but it is easy to switch on f-factor self sheilding).  Plan is
-to move to Bondarenko method in  the future.  See:
+to incorperate a region and energy dependent leakage cross section into the  
+Bondarenko method in the future.  See:
 
 www.me.utexas.edu/~deinert/papers/jpne1610-dembia.pdf
 
