@@ -9,7 +9,10 @@
 
 import mechanize as mz
 import re
+import os
 
+if not os.path.exists('endfvii'):
+    os.makedirs('endfvii')
 
 outdir = 'endfvii/'
 #outdir = 'endfvi/'
