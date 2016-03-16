@@ -193,8 +193,11 @@ def checkLine(line, reFlags):
 
 
 if __name__ == "__main__":
-    """
-    Test functionality on simple xs file
-    """
-    readNJOY('njoyout_9228', 'u235.xs')
-    readNJOY('njoyout_2631', 'fe56.xs')
+    import argparse
+    parser = argparse.ArgumentParser(description='NJOY ouput to XS file converter')
+    parser.add_argument('-i', type=str, help='input file')
+    parser.add_argument('-o', type=str, help='output file')
+    args = parser.parse_args()
+    inputFile = args.i
+    outputFile = args.o
+    readNJOY(inputFile, outputFile)

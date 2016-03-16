@@ -23,7 +23,7 @@
 #
 
 # Supply desired OUTPUT material directory
-MATDIR=ForCompMethods
+MATDIR=njoyOut
 mkdir $MATDIR
 
 # Supply desired temperature
@@ -37,11 +37,15 @@ LORD='8'
 echo 'NJOY run at' $TEMP 'K'
 # Set folder that contains endf data files
 # to be processed
-FILES=/home/wlg333/school/njoy/MATS/*
+FILES=./MATS/*
 
 # Run NJOY
 for file in $FILES
 do
+AMN=`awk -F"[\s-?]" '/1451[ ]+5$/ {print $3}' $file | awk '{print $1}'`
+echo 'Atomic mass number: ' $AMN
+ELE=`awk -F"[-\s?]" '/1451[ ]+5$/ {print $2}' $file `
+echo 'Element: ' $ELE
 MAT=`awk '/VII[ ]+MATERIAL/ {print $3}' $file `
 echo 'Material: ' $MAT
 echo 'Getting endf tape...'
@@ -82,6 +86,7 @@ cat>input <<EOF
  1.0 0.0235 100000. 1000000./
  3 1/
  6 2/
+ 6 51/
  0/
  0/
  moder
@@ -92,7 +97,7 @@ xnjoy<input
 
 # Write outputs
 echo 'saving output'
-mv output $MATDIR/njoyout_$MAT
+mv output $MATDIR/${ELE//[[:blank:]]/}${AMN//[[:blank:]]/}
 done
 #
 #

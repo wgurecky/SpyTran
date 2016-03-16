@@ -6,34 +6,6 @@ from globalMatLib import matLib
 from copy import deepcopy
 
 
-def updateAtomicMass(matLib=matLib):
-    ''' Update atomic masses and atomic numbers. '''
-    for key in matLib.keys():
-        zaidStr = str(matLib[key]['zaid'])
-        try:
-            atM = zaidStr[2:]
-            if len(zaidStr) == 4:
-                aN = zaidStr[0]
-            else:
-                aN = zaidStr[:2]
-            matLib[key]['M'] = elements[int(aN)][int(atM)].mass
-            matLib[key]['A'] = float(elements[int(aN)][int(atM)].number)
-        except:
-            print("Problem in updating properties for isotope " + str(key))
-            if not matLib[key]['M'] or not matLib[key]['A']:
-                print("Isotope: " + str(key) + "Supply isotope atomic mass and atomic number manually")
-                sys.exit()
-            else:
-                print("Isotope: " + str(key) + ": Using default values for atomic mass and atomic number")
-    return matLib
-try:
-    from periodictable import *
-    matLib = updateAtomicMass(matLib)
-except:
-    print("WARNING: python package periodictable is not installed")
-    print("Continuing with user defined atomic mass definitions")
-
-
 def genMaterialDict(xsFolder='./hw2'):
     '''
     Updates the global matLib with all the xs data found in the XS directory

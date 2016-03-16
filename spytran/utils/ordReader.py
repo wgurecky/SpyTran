@@ -21,10 +21,11 @@ class D2quadSet(object):
         We need to query D2ordSet with an ordinate ID and retrive angle,
         reflective pair, and quadrature weight information.
     """
-    octWeightMap = {8: [[0.1209877, ((0, 0), (3, 0), (0, 3))],
-                        [0.0907407, ((0, 1), (0, 2), (1, 0), (1, 2), (2, 1), (2, 0))],
-                        [0.0925926, ((1, 1))]],
-                    6: None,
+    octWeightMap = {8: [[0.1209877, ((0, 0), (0, 3), (3, 0))],
+                        [0.0907407, ((0, 1), (1, 0), (0, 2), (2, 0), (1, 2), (2, 1))],
+                        [0.0925926, ((1, 1), )]],
+                    6: [[0.1761263, ((0, 0), (0, 2), (2, 0))],
+                        [0.1572071, ((0, 1), (1, 0), (1, 1))]],
                     4: [[1 / 3., ((0, 0), (0, 1), (1, 0))]]
                     }
 
@@ -145,7 +146,7 @@ def levelSymQuadSet(sN):
         mu = np.array([0.2182179, 0.5773503, 0.7867958, 0.9511897])
         wN = np.array([0.1209877, 0.0907407, 0.0925926])
     else:
-        sys.exit("Choose 4, 6, or 8 for 2D SN")
+        sys.exit("Choose 4, 6, or 8 ordinates for 2D SN")
     ordinateSet = np.array([mu, wN])
     return ordinateSet
 
