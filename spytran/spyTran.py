@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+from __future__ import division
 from fe import solver as feslv
 import numpy as np
 np.set_printoptions(linewidth=200)  # set print to screen opts

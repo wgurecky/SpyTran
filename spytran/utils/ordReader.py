@@ -52,7 +52,7 @@ class D2quadSet(object):
         Input octant is in [0, 1, 2, 3] """
         for j, varpair in enumerate(self.octVariations):
             # (mu, eta)
-            iD = o * (self.sNords / 4.) + j
+            iD = int(o * (self.sNords / 4.) + j)
             self.ords[iD] = \
                 Ordinate(self.sNmu[varpair[0]] * self.sgn[o, 0],
                          self.sNmu[varpair[1]] * self.sgn[o, 1],
