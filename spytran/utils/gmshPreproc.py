@@ -32,7 +32,6 @@ class gmshMesh(object):
             self.inpFileName = inpFileName + '.inp'
         self.geoFile = geoFile
         self.parseGEO()
-        self.dg_element_dict = {}
 
     def runGMSH(self, dim=1):
         self.dim = dim
@@ -233,21 +232,25 @@ class gmshMesh(object):
         """
         interior_mesh_elements = []
         for regionID, region in self.regions.iteritems():
-            try:
-                interior_mesh_elements.append(self.regions[regionID]['elements'])
-            except:
-                pass
+            if 'elements' in self.regions[regionID].keys():
+                region_element_array = self.regions[regionID]['elements']
+                region_element_region_ids = np.ones((len(region_element_array), 1), dtype=int) * regionID
+                region_taged_elements = np.hstack((region_element_region_ids, region_element_array))
+                # interior_mesh_elements.append(self.regions[regionID]['elements'])
+                interior_mesh_elements.append(region_taged_elements)
         interior_mesh_elements = np.concatenate(interior_mesh_elements, axis=0)
         dg_element_dict = self._build_global_dg_mesh(interior_mesh_elements)
         # find neighbors
         tmp_edge_list = self._edge_list(dg_element_dict)
-        #
         for ele_id, ele in dg_element_dict.iteritems():
             ele_neighbors, ele_edge_neighbors = \
                     self._find_edge_neighbors(ele_id, dg_element_dict, tmp_edge_list)
             dg_element_dict[ele_id]['neighbors'] = {'elements': ele_neighbors,
                                                     'edges': ele_edge_neighbors}
-        self.dg_element_dict = dg_element_dict
+        # split dg_element_dict into regions
+        for regionID, region in self.regions.iteritems():
+            self.regions[regionID]['dg_elements'] = \
+                {k: v for (k, v) in dg_element_dict.iteritems() if regionID == v['gmsh_region_id']}
 
     def _build_global_dg_mesh(self, interior_mesh_elements):
         """!
@@ -260,19 +263,20 @@ class gmshMesh(object):
         global_node_id_idx = 0
         edge_id = 0
         for ele in interior_mesh_elements:
-            el_id = int(ele[0])
-            dg_element_dict[el_id] = {'gmsh_nodeIDs': ele[1:]}
+            region_id = int(ele[0])
+            el_id = int(ele[1])
+            dg_element_dict[el_id] = {'gmsh_nodeIDs': ele[2:]}
+            dg_element_dict[el_id]['gmsh_region_id'] = region_id
             dg_element_dict[el_id]['vertex_pos'] = []
-            for gmsh_node_id in ele[1:]:
+            for gmsh_node_id in ele[2:]:
                 dg_element_dict[el_id]['vertex_pos'].append( \
                         self.nodes[int(np.argwhere(gmsh_node_id == self.nodes[:, 0]))][1:])
             dg_element_dict[el_id]['vertex_pos'] = \
                 np.array(dg_element_dict[el_id]['vertex_pos'])
-            # dg_element_dict[el_id]['nodePos'] =
-            element_global_node_ids = np.zeros(len(ele[1:]), dtype=int)
-            local_global_node_ids = np.zeros(len(ele[1:]), dtype=int)
+            element_global_node_ids = np.zeros(len(ele[2:]), dtype=int)
+            local_global_node_ids = np.zeros(len(ele[2:]), dtype=int)
             local_node_id_idx = 0
-            for i, nodeID in enumerate(ele[1:]):
+            for i, nodeID in enumerate(ele[2:]):
                 self.global_to_gmsh_table[global_node_id_idx] = nodeID
                 element_global_node_ids[i] = global_node_id_idx
                 local_global_node_ids[i] = local_node_id_idx
