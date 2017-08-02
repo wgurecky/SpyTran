@@ -314,6 +314,7 @@ class gmshMesh(object):
                     edge_id += 1
             else:
                 raise RuntimeError("Dim must be 1 or 2")
+        self.total_dg_nodes = global_node_id_idx
         return dg_element_dict
 
     def _edge_list(self, dg_element_dict):
