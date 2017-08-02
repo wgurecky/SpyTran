@@ -255,6 +255,7 @@ class gmshMesh(object):
         Each element is asscoiated with bounding edges and verticies.
         @return dictionary of elements
         """
+        self.global_to_gmsh_table = {}
         dg_element_dict = {}
         global_node_id_idx = 0
         edge_id = 0
@@ -272,6 +273,7 @@ class gmshMesh(object):
             local_global_node_ids = np.zeros(len(ele[1:]), dtype=int)
             local_node_id_idx = 0
             for i, nodeID in enumerate(ele[1:]):
+                self.global_to_gmsh_table[global_node_id_idx] = nodeID
                 element_global_node_ids[i] = global_node_id_idx
                 local_global_node_ids[i] = local_node_id_idx
                 global_node_id_idx += 1
