@@ -245,12 +245,33 @@ class gmshMesh(object):
         for ele_id, ele in dg_element_dict.iteritems():
             ele_neighbors, ele_edge_neighbors = \
                     self._find_edge_neighbors(ele_id, dg_element_dict, tmp_edge_list)
-            dg_element_dict[ele_id]['neighbors'] = {'elements': ele_neighbors,
-                                                    'edges': ele_edge_neighbors}
+            # copy edge info from neighboring element
+            neighbor_edge_global_node_ids = []
+            parent_edge_global_node_ids = []
+            ele_edge_parents = []
+            for neighbor_ele_id in ele_neighbors:
+                for neighbor_edge_id, neighbor_edge in dg_element_dict[neighbor_ele_id]['edges'].iteritems():
+                    for parent_ele_edge_id in ele['edges'].keys():
+                        # check centroids of edges
+                        edge_dist = np.sum(ele['edges'][parent_ele_edge_id]['edge_centroid'] - \
+                            neighbor_edge['edge_centroid'])
+                        if np.isclose(edge_dist, 0.):
+                             neighbor_edge_global_node_ids.append(neighbor_edge['edge_node_ids'])
+                             parent_edge_global_node_ids.append(ele['edges'][parent_ele_edge_id]['edge_node_ids'])
+                             ele_edge_parents.append(parent_ele_edge_id)
+            # append neighbor info into global element dictionary
+            dg_element_dict[ele_id]['neighbors'] = {'neighbor_element_ids': ele_neighbors,    # list of neighboring elements
+                                                    'neighbor_edge_ids': ele_edge_neighbors,  # list of edges of neighboring elements
+                                                    'parent_edge_ids': ele_edge_parents,      # list matching parent edges
+                                                    'parent_edge_global_node_ids': parent_edge_global_node_ids,
+                                                    'neighbor_edge_global_node_ids': neighbor_edge_global_node_ids}
         # split dg_element_dict into regions
         for regionID, region in self.regions.iteritems():
             self.regions[regionID]['dg_elements'] = \
                 {k: v for (k, v) in dg_element_dict.iteritems() if regionID == v['gmsh_region_id']}
+        self.gmsh_node_dict = {}
+        for node in self.nodes:
+            self.gmsh_node_dict[int(node[0])] = node[1:]
 
     def _build_global_dg_mesh(self, interior_mesh_elements):
         """!
