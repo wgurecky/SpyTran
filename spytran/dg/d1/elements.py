@@ -93,20 +93,16 @@ class d1InteriorElement(object):
         gives row collum tuples of where to locate the element matrix entries in
         the complete system 'A' matrix.
         """
-        elemIDmatrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
-                        (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
+        internal_id_matrix = [(self.nodeIDs[0], self.nodeIDs[0]), (self.nodeIDs[0], self.nodeIDs[1]),
+                              (self.nodeIDs[1], self.nodeIDs[0]), (self.nodeIDs[1], self.nodeIDs[1])]
+        # check element orientation
         if self.nodeVs[0] < self.nodeVs[1]:
-            #TODO: in 2 and 3D we will need to use the sortedNodeIndex to get sign on the grad
-            # term correct! but in 1D, just comparing the node X locations is
-            # good enough.
             feI = np.array([[-1, 1], [-1, 1]])
-            edge_node_ids = [(self.nodeIDs[0]), (self.nodeIDs[1])]
         else:
             feI = np.array([[1, -1], [1, -1]])
-            edge_node_ids = [(self.nodeIDs[1]), (self.nodeIDs[0])]
         feI2 = np.array([[1, 0.5], [0.5, 1]])
-        elemMatrix = (0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
-        return elemIDmatrix, elemMatrix.flatten()
+        internal_matrix = (0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
+        return internal_id_matrix, internal_matrix.flatten()
 
     def getNeighborMatrix(self, g, o, totalXs):
         """!
@@ -123,6 +119,15 @@ class d1InteriorElement(object):
         \f]
         Where \f[ \mathbf n \f] is the outward edge normal
         and \f[\Omega \f] is the current ordinate direction
+
+        @return  two lists:
+            boundary_id_matrix:  a list of tuples that determines linkages between nodes
+                                 in the global system matrix.  Identifies the element (i, j)
+                                 in the system matrix A to place the values in the
+                                 other returned list: boundary_matrix
+            boundary_matrix:  holds the coupling coefficients.
+        The complete A matrix will be a banded sparse matrix in the case of CG or DG
+        with DG having more degrees of freedom (all internal nodes are multi-valued in the DG case)
         """
         boundary_id_matrix = []
         boundary_matrix = []
@@ -138,7 +143,7 @@ class d1InteriorElement(object):
                 # edge normal is in same dir as ordinate dir
                 # therefor use the parent element's flux at this edge to
                 # determine boundary flux
-                boundary_id_matrix_k = (parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])
+                boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
                 # FOR 2D case:
                 # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0]),
                 #                         (parent_edge_global_node_ids[1], parent_edge_global_node_ids[1])]
@@ -148,10 +153,10 @@ class d1InteriorElement(object):
                 # edge normal is in oposite dir as ordinate dir
                 # therefor use the neighbor element's flux at this edge to
                 # determine boundary flux
-                boundary_id_matrix_k = (neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])
+                boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
                 boundary_matrix_k = out_normal_dot_mu * 1.0  # in 1D
-            boundary_id_matrix.append(boundary_id_matrix_k)
-            boundary_matrix.append(boundary_matrix_k)
+            boundary_id_matrix += boundary_id_matrix_k
+            boundary_matrix += boundary_matrix_k
         return boundary_id_matrix, boundary_matrix
 
     def getRHS(self, g, o):
