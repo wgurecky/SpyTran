@@ -142,7 +142,8 @@ class d1InteriorElement(object):
                 # edge normal is in same dir as ordinate dir
                 # therefor use the parent element's flux at this edge to
                 # determine boundary flux
-                boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
                 # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
                 # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
                 boundary_matrix_k = [out_normal_dot_mu * 1.0]  # in 1D
