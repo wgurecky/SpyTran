@@ -195,11 +195,11 @@ class RegionMesh(object):
         """
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
-            boundary_nodeIDs, boundary_sysVals = element.getNeighborMatrix(g, o, self.totalXs)
+            neighbor_nodeIDs, neighbor_sysVals = element.getNeighborMatrix(g, o, self.totalXs)
             for nodeID, sysVal in zip(nodeIDs, sysVals):
                 A[nodeID] += sysVal
-            for boundary_nodeID, boundary_sysVal in zip(boundary_nodeIDs, boundary_sysVals):
-                A[boundary_nodeID] += boundary_sysVal
+            for neighbor_nodeID, neighbor_sysVal in zip(neighbor_nodeIDs, neighbor_sysVals):
+                A[neighbor_nodeID] += neighbor_sysVal
         return A
 
     def buildRegionRHS(self, RHS, g, o):
