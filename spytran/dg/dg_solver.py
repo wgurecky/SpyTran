@@ -42,7 +42,7 @@ class SnDgSlv(object):
         elif dim == 2:
             gmshMesh = gmsh2DMesh(geoFile=geoFile)  # Run gmsh
         gmshMesh.enable_connectivity()  # link element neighbors
-        self.nodes = gmshMesh.nodes
+        self.nodes = gmshMesh.global_nodes
         self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict,
                                    nGroups, self.sNords, quadSet, dim)    # build the mesh
         self.depth = 0  # scattering source iteration depth

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import division
 from fe import solver as feslv
+from dg import dg_solver as dgslv
 import numpy as np
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
@@ -11,7 +12,11 @@ class D1solver(object):
         lOrder = kwargs.pop('lOrder', 8)
         sNords = kwargs.pop('sN', 2)
         dim = kwargs.pop('dim', 1)
-        self.solver = feslv.SnFeSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
+        solver = kwargs.pop('space', 'dg')
+        if solver == 'fe':
+            self.solver = feslv.SnFeSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
+        else:
+            self.solver = dgslv.SnDgSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
 
     def trSolve(self, residTol=0.5e-5):
         """

@@ -100,7 +100,7 @@ class d1InteriorElement(object):
         else:
             feI = np.array([[1, -1], [1, -1]])
         feI2 = np.array([[1, 0.5], [0.5, 1]])
-        internal_matrix = (0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
+        internal_matrix = (-0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
         return internal_id_matrix, internal_matrix.flatten()
 
     def getNeighborMatrix(self, g, o, totalXs):
@@ -132,8 +132,8 @@ class d1InteriorElement(object):
         boundary_matrix = []
         for k, neighbor_edge_id in enumerate(self.gmsh_dg_element['neighbors']['neighbor_edge_ids']):
             parent_edge_id = self.gmsh_dg_element['neighbors']['parent_edge_ids'][k]
-            parent_edge_node_ids = self.gmsh_dg_element['neighbors']['parent_edge_global_node_ids'][k]
-            neighbor_edge_node_ids = self.gmsh_dg_element['neighbors']['neighbor_edge_global_node_ids'][k]
+            parent_edge_global_node_ids = self.gmsh_dg_element['neighbors']['parent_edge_global_node_ids'][k]
+            neighbor_edge_global_node_ids = self.gmsh_dg_element['neighbors']['neighbor_edge_global_node_ids'][k]
             # obtain edge outward normal
             parent_edge = self.gmsh_dg_element['edges'][parent_edge_id]
             edge_normal = parent_edge['edge_normal']
@@ -143,17 +143,25 @@ class d1InteriorElement(object):
                 # therefor use the parent element's flux at this edge to
                 # determine boundary flux
                 boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
-                # FOR 2D case:
+                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
+                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                boundary_matrix_k = [out_normal_dot_mu * 1.0]  # in 1D
+                #
                 # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0]),
-                #                         (parent_edge_global_node_ids[1], parent_edge_global_node_ids[1])]
-                # boundary_matix_k = out_normal_dot_mu * [0.5, 0.5]
-                boundary_matrix_k = out_normal_dot_mu * 1.0  # in 1D
+                #                         (neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
+                # boundary_matrix_k = [out_normal_dot_mu * 0.5, out_normal_dot_mu * 0.5]  # in 1D
             else:
                 # edge normal is in oposite dir as ordinate dir
                 # therefor use the neighbor element's flux at this edge to
                 # determine boundary flux
-                boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
-                boundary_matrix_k = out_normal_dot_mu * 1.0  # in 1D
+                boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
+                # boundary_matrix_k = [-out_normal_dot_mu * 1.0]  # in 1D
+                boundary_matrix_k = [out_normal_dot_mu * 1.0]  # in 1D
+                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0]),
+                #                         (neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
+                # boundary_matrix_k = [out_normal_dot_mu * 0.5, out_normal_dot_mu * 0.5]  # in 1D
             boundary_id_matrix += boundary_id_matrix_k
             boundary_matrix += boundary_matrix_k
         return boundary_id_matrix, boundary_matrix
