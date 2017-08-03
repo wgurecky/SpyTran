@@ -181,18 +181,25 @@ class RegionMesh(object):
 
     def buildRegionA(self, A, g, o):
         """
-        Populate matrix A for group g for nodes in this region.
-        This must only be done once
-        as the system matrix A is not dependent on the flux.
-        For each angle and energy the matrix A is only dependent on the
-        total cross section (energy).
-        Since A is very sparse, use scipy's sparse matrix class to save memory.
+        @breif Populate matrix A for group g and ordinate o
+        for nodes in this region.
+        This must only be done once as the system matrix A does not depend on the flux.
+        Since A is very sparse we use scipy's sparse matrix class.
+        @param A  scipy.sparse.lil_matrix  A row-based linked list sparse
+            matrix so that modifying the elements is rather fast.
+            later this is converted to a
+            scipy.sparse.csc_matrix before solving linear system.
+        @param g  int. energy group.
+        @param o  int.  discrete ordinate id.
+        @return A  filled system A matrix
         """
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
-            #A[np.ix_(np.array(nodeIDs)[:, 0], np.array(nodeIDs)[:, 1])] += sysVals
+            boundary_nodeIDs, boundary_sysVals = element.getNeighborMatrix(g, o, self.totalXs)
             for nodeID, sysVal in zip(nodeIDs, sysVals):
                 A[nodeID] += sysVal
+            for boundary_nodeID, boundary_sysVal in zip(boundary_nodeIDs, boundary_sysVals):
+                A[boundary_nodeID] += boundary_sysVal
         return A
 
     def buildRegionRHS(self, RHS, g, o):

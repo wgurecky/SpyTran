@@ -6,12 +6,12 @@ from spytran.utils.ordReader import gaussLegQuadSet
 from spytran.utils.ordReader import D2quadSet
 from spytran.utils.gmshPreproc import gmsh1DMesh
 from spytran.utils.gmshPreproc import gmsh2DMesh
-from mesh import SuperMesh
+from dg_mesh import SuperMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
 warnings.filterwarnings("ignore")
 
 
-class SnFeSlv(object):
+class SnDgSlv(object):
     """
     High level solver tasks reside here. e.g:
         - Make transport operator (matirx A)
@@ -34,14 +34,14 @@ class SnFeSlv(object):
         elif dim == 2:
             quadSet = D2quadSet(sN)
             self.sNords, self.wN = quadSet.sNords, quadSet.wN
-        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
-        self.nG = nGroups                                       # number of energy groups
+        self.maxLegOrder = legOrder                            # remember to range(maxLegORder + 1)
+        self.nG = nGroups                                      # number of energy groups
         #
         if dim == 1:
             gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
         elif dim == 2:
             gmshMesh = gmsh2DMesh(geoFile=geoFile)  # Run gmsh
-        gmshMesh.enable_connectivity()
+        gmshMesh.enable_connectivity()  # link element neighbors
         self.nodes = gmshMesh.nodes
         self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict,
                                    nGroups, self.sNords, quadSet, dim)    # build the mesh
