@@ -116,6 +116,7 @@ class RegionMesh(object):
          ...
         ]
         """
+        self.gmshRegion = gmshRegion
         self.dim = kwargs.get("dim")
         self.nG = kwargs.get("nGroups")
         self.bcDict = bcDict
@@ -193,13 +194,23 @@ class RegionMesh(object):
         @param o  int.  discrete ordinate id.
         @return A  filled system A matrix
         """
+        n_boundary_elements = 0
+        n_interior_elements = 0
         for elementID, element in self.elements.iteritems():
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
             neighbor_nodeIDs, neighbor_sysVals = element.getNeighborMatrix(g, o, self.totalXs)
+            if len(neighbor_nodeIDs) == 1:
+                # print(self.gmshRegion['dg_elements'][elementID]['vertex_pos'])
+                n_boundary_elements += 1
+            elif len(neighbor_nodeIDs) == 2:
+                n_interior_elements += 1
             for nodeID, sysVal in zip(nodeIDs, sysVals):
                 A[nodeID] += sysVal
             for neighbor_nodeID, neighbor_sysVal in zip(neighbor_nodeIDs, neighbor_sysVals):
                 A[neighbor_nodeID] += neighbor_sysVal
+        # print("n_boundary_elements = %d" % n_boundary_elements)
+        # print("n_interior_elements = %d" % n_interior_elements)
+        # print("===========")
         return A
 
     def buildRegionRHS(self, RHS, g, o):

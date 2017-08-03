@@ -152,20 +152,15 @@ class d1InteriorElement(object):
                 # edge normal is in oposite dir as ordinate dir
                 # therefor use the neighbor element's flux at this edge to
                 # determine boundary flux
-                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
+                #
                 boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
-                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
-                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
-                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
-                # boundary_matrix_k = [-out_normal_dot_mu * 1.0]  # in 1D
                 boundary_matrix_k = [out_normal_dot_mu * 1.0]  # in 1D
-                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0]),
-                #                         (neighbor_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
-                # boundary_matrix_k = [out_normal_dot_mu * 0.5, out_normal_dot_mu * 0.5]  # in 1D
+                #
+                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0]),
+                #                         (parent_edge_global_node_ids[0], neighbor_edge_global_node_ids[0])]
+                # boundary_matrix_k = [out_normal_dot_mu * 0.5, out_normal_dot_mu * 0.5]
             boundary_id_matrix += boundary_id_matrix_k
             boundary_matrix += boundary_matrix_k
-        if len(boundary_id_matrix) == 2:
-            print("interiror node")
         return boundary_id_matrix, boundary_matrix
 
     def getRHS(self, g, o):
