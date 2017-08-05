@@ -159,6 +159,7 @@ class RegionMesh(object):
                 for bcElmID, nodeIDs in bcElms.iteritems():
                     if self.dim == 1:
                         nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+                        # import pdb; pdb.set_trace()
                         self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (nodeIDs, nodePos), self.elements[bcElmID])
                     else:
                         nodePos = np.array([gmshRegion['nodes'][nodeID][1:3] for nodeID in nodeIDs])

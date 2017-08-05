@@ -71,13 +71,13 @@ class SuperMesh(object):
         For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
         """
-        innerResid, Aresid = 0, 0
+        innerResid, gmres_status = 0, 0
         for g in range(self.nG):
             for o in range(self.sNords):
-                self.scFluxField[g, o], Aresid = \
+                self.scFluxField[g, o], gmres_status = \
                     spl.gmres(self.sysA[g, o], self.sysRHS[g, o], tol=tolr, M=self.sysP[g, o])
-                if Aresid > 0:
-                    print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(Aresid))
+                if gmres_status > 0:
+                    print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(gmres_status))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
             fluxStor = (self.scFluxField, self.totFluxField)
@@ -164,15 +164,21 @@ class RegionMesh(object):
                 for bcElmID, nodeIDs in bcElms.iteritems():
                     dg_element_node = gmshRegion['dg_elements'][bcElmID]
                     global_nodeIDs, global_nodePos = [], []
-                    for gmsh_node_id, gmsh_node_pos in zip(dg_element_node['gmsh_nodeIDs'], dg_element_node['vertex_pos']):
+                    for global_id, gmsh_node_id, gmsh_node_pos in zip(dg_element_node['global_nodeIDs'],
+                                                           dg_element_node['gmsh_nodeIDs'],
+                                                           dg_element_node['vertex_pos']):
                         if gmsh_node_id in nodeIDs:
-                            global_nodeIDs.append(gmsh_node_id)
+                            # CHANGE TO GLOBAL rather than original GMSH
+                            # global_nodeIDs.append(gmsh_node_id)
+                            # FIXED?
+                            global_nodeIDs.append(global_id)
                             if self.dim == 1:
                                 global_nodePos.append(gmsh_node_pos[0])
                             elif self.dim == 2:
                                 global_nodePos.append(gmsh_node_pos[0:2])
                     if self.dim == 1:
                         # nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
+                        # import pdb; pdb.set_trace()
                         self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (global_nodeIDs,
                                                                     global_nodePos), self.elements[bcElmID])
                     else:
