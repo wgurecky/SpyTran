@@ -26,7 +26,7 @@ materialDict = {'mat_1': attnMat,
 
 # Boundary conditions
 fixedFlux1 = np.zeros((nG, sN))
-fixedFlux1[0, 0] = 16 * 1e6    # 1e6 flux in ord 0, grp 1
+fixedFlux1[0, -1] = 16 * 1e6    # 1e6 flux in ord 0, grp 1
 bcDict = {'bc1': fixedFlux1,
           'bc2': 'vac'}
 
