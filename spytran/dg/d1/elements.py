@@ -166,8 +166,8 @@ class d1InteriorElement(object):
                 boundary_matrix_k = np.array([0.0, 0.0,
                                               -1.0, 0.0])
                 if numerical_flux == 'avg':
-                boundary_matrix_k = np.array([-0.5, 0.0,
-                                              -0.5, 0.0])
+                    boundary_matrix_k = np.array([-0.5, 0.0,
+                                                  -0.5, 0.0])
             boundary_id_matrix += boundary_id_matrix_k
             boundary_matrix += list(boundary_matrix_k * np.abs(out_normal_dot_mu))
         return boundary_id_matrix, boundary_matrix
