@@ -103,11 +103,18 @@ class d1InteriorElement(object):
         internal_matrix = (-0.5 * self.sNmu[o]) * feI + ((1 / 3.) * totalXs[g] * self.deltaX) * feI2
         return internal_id_matrix, internal_matrix.flatten()
 
-    def getNeighborMatrix(self, g, o, totalXs):
+    def getNeighborMatrix(self, g, o, totalXs, numerical_flux='upwind'):
         """!
         @brief  Couples the neighboring elements with the current element
-        through boundary-upwinded fluxes.
-        First, for each edge the upwind element is determined.
+        through boundary-upwinded or boundary-average fluxes.
+        @param g  int. group id
+        @param o  int.  ordinate id
+        @param totalXs  float.  Total XS for this energy group in this element
+        @param numerical_flux string.  either 'upwind' or 'avg'
+            Note: The 'upwind' method is known to 'lock' in the diffusion limit.
+            TODO: automatically select between methods depending on value for
+            totalXs
+        For upwind: for each edge the upwind element is determined.
         Next, the term:
         \f[
         \int_{\partial K} \hat{F} \cdot \mathbf n \phi dx
@@ -134,38 +141,33 @@ class d1InteriorElement(object):
             parent_edge_id = self.gmsh_dg_element['neighbors']['parent_edge_ids'][k]
             parent_edge_global_node_ids = self.gmsh_dg_element['neighbors']['parent_edge_global_node_ids'][k]
             neighbor_edge_global_node_ids = self.gmsh_dg_element['neighbors']['neighbor_edge_global_node_ids'][k]
-            #
+            # Build edge coupling matrix
             p = parent_edge_global_node_ids[0]
             n = neighbor_edge_global_node_ids[0]
-            # Edge coupling matrix
             boundary_id_matrix_k = [(p, p), (p, n),
                                     (n, p), (n, n)]
-            #
-            # obtain edge outward normal
+            # Obtain edge outward normal
             parent_edge = self.gmsh_dg_element['edges'][parent_edge_id]
             edge_normal = parent_edge['edge_normal']
             out_normal_dot_mu = np.dot(np.array([self.sNmu[o], 0., 0.]), edge_normal)
             if out_normal_dot_mu > 0:
                 # edge normal is in same dir as ordinate dir
-                # therefor use the parent element's flux at this edge to
+                # Therefore use the parent element's flux at this edge to
                 # determine boundary flux
-                # boundary_id_matrix_k = [(parent_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
-                # boundary_matrix_k = [-out_normal_dot_mu * 1.0]  # in 1D
-                # boundary_matrix_k = [-out_normal_dot_mu * 1.0, 0.0,
-                #                      0.0, 0.0]
-                boundary_matrix_k = np.array([-1.0, 0.0,
+                boundary_matrix_k = np.array([1.0, 0.0,
                                               0.0, 0.0])
+                if numerical_flux == 'avg':
+                    boundary_matrix_k = np.array([0.5, 0.0,
+                                                  0.5, 0.0])
             else:
                 # edge normal is in oposite dir as ordinate dir
-                # therefor use the neighbor element's flux at this edge to
+                # Therefore use the neighbor element's flux at this edge to
                 # determine boundary flux
-                #
-                # boundary_id_matrix_k = [(neighbor_edge_global_node_ids[0], parent_edge_global_node_ids[0])]
-                # boundary_matrix_k = [-out_normal_dot_mu * 1.0]  # in 1D
-                # boundary_matrix_k = [0.0, 0.0 * out_normal_dot_mu,
-                #                      -1.0 * out_normal_dot_mu, 0.0]
                 boundary_matrix_k = np.array([0.0, 0.0,
-                                              1.0, 0.0])
+                                              -1.0, 0.0])
+                if numerical_flux == 'avg':
+                boundary_matrix_k = np.array([-0.5, 0.0,
+                                              -0.5, 0.0])
             boundary_id_matrix += boundary_id_matrix_k
             boundary_matrix += list(boundary_matrix_k * np.abs(out_normal_dot_mu))
         return boundary_id_matrix, boundary_matrix
@@ -329,6 +331,7 @@ class d1BoundaryElement(object):
         # In 2D and 3D we must find orthogonal line to surface/line
         # TODO: THIS IS THE FRIGGIN DG BUG.  OUTWARD NORMAL IS
         # NO LONGER COMPUTED CORRECTLY HERE (MOVED TO MESH DEF)
+        # import pdb; pdb.set_trace()
         # self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)  # broke
         self.outwardNormal = -(commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)  # tmp fix
 
