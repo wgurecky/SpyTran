@@ -141,7 +141,15 @@ class SnDgSlv(object):
         # write [[nodeID, nodeX, nodeY, nodeZ],...] vector  (this is gmshMesh.nodes)
         # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
         # write eigenvalue
-        h5data = {'nodes': self.nodes, 'ordFluxes': self.superMesh.totFluxField,
+        node_list = self.superMesh.global_node_list
+        h5data = {'nodes': node_list, 'ordFluxes': self.superMesh.totFluxField,
                   'keff': self.keff, 'fluxNorm': self.norm, 'weights': self.wN,
                   'nGrp': self.nG, 'scrIters': self.depth}
         h5d.writeToHdf5(h5data, outFileName)
+
+    def _link_dg_ele_nodes(self):
+        """!
+        @brief Creates a list of nodes with their corrosponding element ids.
+        """
+        for region in self.superMesh.regions.iteritems():
+            pass

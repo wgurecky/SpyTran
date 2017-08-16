@@ -103,6 +103,13 @@ class SuperMesh(object):
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
         self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
 
+    @property
+    def global_node_list(self):
+        global_node_list = []
+        for regionID, region in self.regions.iteritems():
+            global_node_list.append(region.node_list)
+        return np.vstack(tuple(global_node_list))
+
 
 class RegionMesh(object):
     def __init__(self, gmshRegion, fluxStor, material, bcDict, source, **kwargs):
@@ -133,7 +140,22 @@ class RegionMesh(object):
             #source = kwargs.pop("source", None)
         # Build elements in the region mesh
         self.buildElements(gmshRegion, fluxStor, source, **kwargs)
+        self._gen_node_list(gmshRegion, **kwargs)
         self.linkBoundaryElements(gmshRegion)
+
+    def _gen_node_list(self, gmshRegion, **kwargs):
+        self.node_list = []
+        for element in gmshRegion['elements']:
+            nodeIDs = element[1:]
+            gmsh_dg_element = gmshRegion['dg_elements'][int(element[0])]
+            global_nodeIDs = gmsh_dg_element['global_nodeIDs']
+            global_nodePos = gmsh_dg_element['vertex_pos']
+            element_centroid = gmsh_dg_element['centroid']
+            for glb_id, glb_pos in zip(global_nodeIDs, global_nodePos):
+                self.node_list.append(
+                        [glb_id] + list(element_centroid) + list(glb_pos)
+                        )
+        self.node_list = np.array(self.node_list)
 
     def buildElements(self, gmshRegion, fluxStor, source, **kwargs):
         """
@@ -177,8 +199,6 @@ class RegionMesh(object):
                             elif self.dim == 2:
                                 global_nodePos.append(gmsh_node_pos[0:2])
                     if self.dim == 1:
-                        # nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-                        # import pdb; pdb.set_trace()
                         self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (global_nodeIDs,
                                                                     global_nodePos), self.elements[bcElmID])
                     else:
