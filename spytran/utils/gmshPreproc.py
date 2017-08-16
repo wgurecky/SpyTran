@@ -277,16 +277,6 @@ class gmshMesh(object):
         for i in range(self.total_dg_nodes):
             gmsh_node_id = self.global_to_gmsh_table[i]
             self.global_nodes[i] = self.nodes[gmsh_node_id]
-        i = 0
-        for ele_id, ele in dg_element_dict.iteritems():
-            element_centroid = ele['centroid']
-            element_id = ele_id
-            gmsh_node_ids = ele['gmsh_nodeIDs']
-            for gmsh_node_id in gmsh_node_ids:
-                self.global_element_nodes[i, 0] = element_id
-                self.global_element_nodes[i, 1:4] = element_centroid
-                self.global_element_nodes[i, 4:] = self.nodes[gmsh_node_id]
-                i += 1
 
     def _build_global_dg_mesh(self, interior_mesh_elements):
         """!

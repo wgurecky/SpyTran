@@ -43,7 +43,7 @@ slv.trSolve(residTol=1e-7)
 slv.writeData(pwdpath + '/output/1Dtestout.h5')
 
 # Plot
-from spytran.fe.post import Fe1DOutput as fe1Dplt
+from spytran.dg.dg_post import Fe1DOutput as fe1Dplt
 plotter = fe1Dplt(pwdpath + '/output/1Dtestout.h5')
 for i in range(nG):
     plotter.plotScalarFlux(i, fname=pwdpath + '/output/scflux.png')
