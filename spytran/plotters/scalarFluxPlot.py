@@ -4,8 +4,8 @@ import numpy as np
 
 def plot1DScalarFlux(fluxVec, meshX, enableYlog=False, fnameOut='fluxS', figNum=1, label='grpFlux', legend=True):
     plt.figure(figNum)
-    plt.plot(meshX, fluxVec, linewidth='1', label=label)
-    # plt.scatter(meshX, fluxVec, s=1, label=label)
+    plt.plot(meshX, fluxVec, 'o-', mfc='none', linewidth='1', ms=3, label=label)
+    # plt.scatter(meshX, fluxVec, s=1)
     plt.ylabel("Flux (Arbitrary Scaling)")
     plt.xlabel("Position [cm]")
     if enableYlog:

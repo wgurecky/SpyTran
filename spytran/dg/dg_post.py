@@ -51,7 +51,7 @@ class Fe1DOutput(object):
         """
         node_x = self.nodes[:, 4]
         ele_centroid_x = self.nodes[:, 1]
-        node_x += (node_x - ele_centroid_x) * 1e-8
+        node_x += -(node_x - ele_centroid_x) * 1e-8
         plotData = np.array([node_x, self.angleIntFlux[g]])
         plotData = plotData[:, np.argsort(plotData[0])]
         sfp.plot1DScalarFlux(plotData[1], plotData[0], label='G' + str(g), fnameOut=fname)
@@ -59,7 +59,7 @@ class Fe1DOutput(object):
     def plotTotalFlux(self, fname='totflx'):
         node_x = self.nodes[:, 4]
         ele_centroid_x = self.nodes[:, 1]
-        node_x += (node_x - ele_centroid_x) * 1e-8
+        node_x += -(node_x - ele_centroid_x) * 1e-8
         plotData = np.array([node_x, self.totFlux])
         plotData = plotData[:, np.argsort(plotData[0])]
         sfp.plot1DScalarFlux(plotData[1], plotData[0], label='tot', fnameOut=fname)
