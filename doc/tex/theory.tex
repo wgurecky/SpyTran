@@ -1,2 +1,98 @@
 %-----------------------------------------------------------------------------%
 \section{Theory}
+
+We begin by considering the time-independent, single dimensional, non-multiplying fixed source neutron transport equation given by equation \ref{1dtr}.  This equation is continuous in energy and angle.
+
+\begin{eqnarray}
+& \left[ \Omega \cdot \nabla + \Sigma_t -
+\int_{E'} dE' \int_{\mathbf\Omega'} d \mathbf\Omega'
+\Sigma_s \left(x, E' \rightarrow E , \mathbf\Omega' \cdot \mathbf\Omega \right) \right] 
+\psi(x, \mathbf\Omega, E)  \nonumber \\
+& =
+Q(x, \mathbf\Omega, E)
+\label{1dtr}
+\end{eqnarray}
+
+Where $\mathbf\Omega'$ is the post scattering angle in the lab frame and likewise, $E'$ is the post scattering neutron energy.  $\Sigma_t$ is the total macroscopic cross section.  $Q$ is an arbitrary non-fission volumetric neutron source.  The angle $\mathbf\Omega$ has two components; an azimuthal component $\nu$ and zenith angle, $\eta$.
+$\Sigma_s \left(x, E' \rightarrow E , \mathbf\Omega' \cdot \mathbf\Omega \right)$ is sometimes called the differential scattering cross section.  The defines the probability of scattering from $E$ to $E'$ in coincidence with scattering from direction $\mathbf\Omega$ into $\mathbf\Omega'$.  Note the differential cross section depends on the dot product between the incomming and outgoing scattering angles.  
+
+Equation \ref{trop} is referred to as the streaming-collision operator.  This operates on the angular dependent flux, $\psi$, and concisely conveys the redistribution of neutrons in energy and space due to non-fission neutron interactions with matter.
+\begin{equation}
+H = \left[ \Omega \cdot \nabla + \Sigma_t 
+ \right]
+\label{trop}
+\end{equation}
+
+The scattering operator, $S$ is given by equation \ref{scatter_op}.
+\begin{equation}
+S = \left[ 
+\int_{E'} dE' \int_{\mathbf\Omega'} d \mathbf\Omega'
+\Sigma_s \left(x, E' \rightarrow E , \mathbf\Omega' \cdot \mathbf\Omega \right)
+ \right]
+\label{trop}
+\end{equation}
+
+We can concisely write the transport equation in operator notation in equation \ref{trop_not}.
+
+\begin{equation}
+H\psi = S\psi + Q
+\label{trop_not}
+\end{equation}
+$H-S$ is sometimes defined to be the transport operator.
+
+The next step is to apply the discrete ordinate approximation in angle and the multigroup approximation in energy.  In this case, we restrict the neutrons to travel in a finite (and typically small) number, $G$, of energy groups.  Neutrons in group $g$ are said to have some energy on the interval $(E_g, E_{g-1}]$.  The continuous energy integral in \ref{1dtr} can
+be replaced by the sum shown in equation \ref{mgrp}.
+
+\begin{equation}
+\int_0^\infty dE' \approx \sum_{g'=1}^G \int_{E_{g'-1}}^{E_{g'}} dE'
+\label{mgrp}
+\end{equation}
+
+Before applying the multigroup approximation to \ref{1dtr}, it is advantageous to replace the differential scattering operator with a spherical harmonic series expansion. This is done to eliminate the angular dependence of the cross sections.  Most numerical treatments of neutron transport do not use angular dependant cross sections and instead capture the angular redistribution action of the scattering operator through, typically, a Legendre expansion \cite{Lewis}.  
+
+\begin{eqnarray}
+& S\psi \approx \nonumber \\
+& \sum_{l=0}^N (2l+1) \int dE' \Sigma_{sl}(x, E'\rightarrow E)
+  \int d\mathbf\Omega' P_l(\mathbf\Omega \cdot \mathbf{\Omega'}) \psi
+\label{sexp}
+\end{eqnarray}
+Where $l$ is the Legendre polynomial ($P_l$) order and $N$ is the maximum number of terms to retain in the expansion.  We see that the angular dependence has been eliminated from the scattering cross section $\Sigma_s$.
+The Legendre addition theorem provides the identity:
+\begin{equation}
+P_l(\mathbf\Omega \cdot \mathbf{\Omega'}) = \frac{1}{2l+1}
+\sum_{m=-l}^{l} Y^{*}_{lm}(\mathbf\Omega) Y_{lm}(\mathbf\Omega')
+\label{leg_add}
+\end{equation}
+Where $Y_{lm}$ is the spherical harmonic of degree $l$ and order $m$.  $*$ represents the complex conjugate.  Applying \ref{leg_add} to \ref{sexp} produces \ref{sexp2}.
+\begin{eqnarray}
+& S\psi \approx \nonumber \\
+& \sum_{l=0}^N \int dE' \Sigma_{sl}(x, E'\rightarrow E) \sum_{m=-l}^{l} Y^{*}_{lm}(\mathbf\Omega)
+  \int d\mathbf\Omega' Y_{lm}(\mathbf\Omega') \psi
+\label{sexp2}
+\end{eqnarray}
+The integral of inner product of the spherical harmonics with the angular dependent flux over angle $\mathbf\Omega'$ can be shown to be the coefficients given by \ref{sph_coeffs} \cite{Lewis}:
+\begin{equation}
+\int d\mathbf\Omega' Y_{lm}(\mathbf\Omega') \psi(x, E) = \phi_l^m(x, E)
+\label{sph_coeffs}
+\end{equation}
+We can rewrite \ref{sexp2} as shown in \ref{sexp3}.
+\begin{eqnarray}
+& S\psi \approx \nonumber \\
+& \sum_{l=0}^N \int dE' \Sigma_{sl}(x, E'\rightarrow E) \sum_{m=-l}^{l} Y^{*}_{lm}(\mathbf\Omega) \phi_l^m(x, E)
+\label{sexp3}
+\end{eqnarray}
+
+In one dimension, we are only concerned with the azimuthal component, $\mu$, of $\mathbf\Omega$ since the zenith components of the flux are always equal and opposite.  Equation \ref{sexp3} reduces to equation \ref{sexp4}.
+\begin{eqnarray}
+& S\psi \approx \nonumber \\
+& \sum_{l=0}^N (2l+1) P_l(\mu) \int dE' \Sigma_{sl}(x, E'\rightarrow E) \phi_l(x, E)
+\label{sexp4}
+\end{eqnarray}
+Where $\phi_l$ is the $l^{th}$ Legendre moment of the flux given by equation \ref{leg_mom_flx}.
+\begin{equation}
+\phi_l(x,E) = \frac{1}{2} \int_{-1}^1 d\mu' P_l(\mu') \psi(x, \mu', E)
+\label{leg_mom_flx}
+\end{equation}
+
+Though this is a very simplified derivation of the transport equation for the extreemly limited case of a steady-state non multiplying medium, it provides a useful starting point to investigate numerical methods to approximate the spatial component of the neutron flux.
+As previously stated, we focus on the DGFE approach here.
