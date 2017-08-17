@@ -32,9 +32,9 @@ Next, we integrate the first term in \ref{1d_tr_weak} by parts giving:
 \label{1d_tr_weak2}
 \end{equation}
 We are free to choose a functional form for $v(x)$. In the Galerkin approach, the test function is
-taken to be of the same form as the solution approximation $\psi(x)$. The simple DGFE choice is to take $v(x)$ to be a
+taken to be of the same functional form as the solution approximation $\psi(x)$. The simple DGFE choice is to take $v(x)$ to be a
 linear combination of ramp functions. Each ramp function $h_{ei}(x)$ is supported only at one nodal location in the mesh
-and is defined to be zero at all other nodes. Figure \ref{single_ele} displays two interior neighboring ramp functions which are each non-zero over element $e_1$. The ramp functions are defined to have unit height over their supporting node.  An element is defined to be the region between bounding nodes which are points at which the solution is supported.
+and is defined to be zero at all other nodes. Figure \ref{single_ele} displays two interior neighboring ramp functions which are each non-zero over element $e_1$. The ramp functions are defined to have unit height over their supporting node.  An element is defined to be the region between bounding nodes which are points at which the solution is supported.  For simplicity all elements are assumed to have width $\Delta x$.
 
 \begin{figure}[!htbp]
 \centering
@@ -51,3 +51,108 @@ and is defined to be zero at all other nodes. Figure \ref{single_ele} displays t
 \end{figure}
 
 In practice the transport equation is integrated element-by-element, rather than over the whole domain.  The contribution of each element will be summed together to recover the neutron balance over the whole domain.  For now, we consider an interior element, $e_1$ defined on the sub-region: $[a, b]$.  Figure \ref{multi_ele} shows the interior element $e_1$ bounded by two other elements.  Note that the hypothetical DGFE numerical solution $\psi$ jumps in value at element boundaries.  As a consequence, at element boundaries the solution is double value (in 1D, in higher dimensions it could be $N$-valued).  This is where the Discontinuous Galerkin finite element scheme differs from the more commonly known Continuous Galerkin (CG) FE spatial discretization method.
+
+Now it is useful to formally define the ramp functions and their linear combination.  Over a single element, the solution $\psi_e(x)$ is given by equation \ref{sol_ele}.
+
+\begin{equation}
+\psi_e(x) = u_{eL}h_{e1}(x) + u_{eR}h_{e2}(x) = \sum_i u_{ei} h_{ei}(x),\ x\in[a,b]
+\label{sol_ele}
+\end{equation}
+Where $i$ is the edge index, in the one dimension case this denotes either the left or right face.
+The ramp functions are given as:
+\begin{equation}
+  h_{e1}(x) =
+  \begin{cases}
+                                   \frac{-1}{\Delta x}(x-a) + 1 & \text{, $x\in[a,b]$} \\
+                                   0 & \text{, $otherwise$} 
+  \end{cases}
+\end{equation}
+and
+\begin{equation}
+  h_{e2}(x) =
+  \begin{cases}
+                                   \frac{1}{\Delta x}(x-a) & \text{, $x\in[a,b]$} \\
+                                   0 & \text{, $otherwise$} 
+  \end{cases}
+\end{equation}
+As previously stated, the Galerkin approach is to enforce \ref{gal_asm}.
+\begin{equation}
+\psi_e(x) = v_e(x)
+\label{gal_asm}
+\end{equation}
+on each element.  At first glance this appears this is an arbitrary choice, and indeed, this assumption does not have to be made.  One could use different functional families for $\psi$ and $v$, however we will not investigate this option.
+
+For this case where we have chosen simple ramp functions to represent our 1D solution approximation, each element has two unknown scalar values, $\{u_{eL}, u_{eR}\}$ that act to scale the ramp functions over the element.
+
+\begin{equation}
+\mu \psi_e(x)v_e(x)|_a^b- \mu \int_a^b  \psi_e(x) \frac{\partial v_e(x)}{\partial x} dx + \int_a^b \Sigma_t \psi_e(x)v_e(x) dx =  \int_a^b S_e(x)v_e(x) dx
+\label{1d_tr_weak_ele}
+\end{equation}
+
+Next we apply \ref{sol_ele} and \ref{gal_asm} to \ref{1d_tr_weak_ele}.
+The solution over the entire domain is the summation of the piecewise linear solution approximation over all elements:
+\begin{equation}
+\psi(x) = \sum_{e=0}^M \psi_e(x) 
+\end{equation} 
+Where $M$ is the number of finite elements used.
+ 
+The integral terms in equation \ref{1d_tr_weak_ele} can be expanded to explicitly show their dependence on the scaling factors.  The second term in \ref{1d_tr_weak_ele} integrates to \ref{w_e}.
+
+\begin{equation}
+W_e = -\int_a^b \mu \psi_e \frac{\partial v_e}{\partial x} dx = \frac{-1}{2\mu}(u_{eR}^2 - u_{eL}^2) = 
+\frac{-1}{2\mu} \mathbf u_e 
+\begin{bmatrix}
+    -1      & 1 \\
+    -1       & 1 
+\end{bmatrix}
+\mathbf u_e^T
+\label{w_e}
+\end{equation}
+With $\mathbf u_e = [u_{eL}, u_{eR}]$.  Note that this produces an asymmetric element matrix.  As a consequence, it is required that the order of the nodes from left to right is preserved.
+
+The third term in \ref{1d_tr_weak_ele} integrates to \ref{m_e}.
+\begin{equation}
+M_e = \int_a^b \Sigma_t \psi_e(x)v_e(x) dx =
+\frac{\Sigma_t \Delta x}{3} (u_L^2 + u_L u_R + u_R^2) = 
+\frac{\Sigma_t \Delta x}{3} \mathbf u_e 
+\begin{bmatrix}
+    1      & 1/2 \\
+    1/2      & 1 
+\end{bmatrix}
+\mathbf u_e^T
+\label{m_e}
+\end{equation}
+
+The RHS of equation \ref{1d_tr_weak_ele} integrates to ().
+
+\begin{equation}
+RHS_e = \int_a^b S_e(x)v_e(x) dx =
+\frac{S_e \Delta x}{2} (u_L + u_R) = 
+\frac{S_e \Delta x}{2}
+\begin{bmatrix}
+    1     \\
+    1 
+\end{bmatrix}
+\mathbf u_e^T
+\label{s_e}
+\end{equation}
+
+Where we take the value $S_e$ to be the value of $S_e(x)$ at the element mid-point.  This is valid provided that $S_e(x)$ is a linear function since this is equal to the average value of $S_e(x)$ over the element.
+
+Finally, we must deal with the boundary term which arose from integrating the first term of equation \ref{1d_tr_weak_ele} by parts.  This term is the only term which will contain information from neighboring elements in its definition.  This is why it is said that the DGFE technique is ``compact''. 
+
+We will seek to find the combination of the scaling factors on all elements simultaneously which best satisfies the overall weak form of the neutron balance equation \ref{1d_tr_weak}.  One can think of the finite element method in an optimization context in which some (hopefully unique) combination of the scalars ${u_0, u_1, ...}$ that reduces the residual of \ref{1d_tr_weak} to some minimal value.
+ 
+ To construct the system matrix A, the individual element matrices are ``stamped'' into A. Since
+each node is assigned a unique ID the elements of A e can be copied into the global A.
+ 
+Up until this point we have disregarded the application of boundary conditions since we focused on the interior elements.  For the first order transport equation, all boundary conditions (vacuum, reflective, white) can be
+described as either fixed or free. A Fixed boundary condition specifies the value of $\psi$ at the boundary.
+This arises in the vacuum case where inward facing ordinate fluxes are set equal to zero at the
+boundary. This also arises in the reflective and white cases where the banked outward fluxes from the
+previous scattering source iteration are assigned as fixed boundary values for the inward facing ordinate
+fluxes. A free boundary arises in cases where the flux is allowed to escape from the domain.
+To implement a fixed boundary condition, the row in the global system matrix, A, corresponding
+to the boundary node is set equal to zero at all elements except at the diagonal where the diagonal
+entry is set equal to 1. On the right hand side the specified value for the flux at that node is set.
+Free boundary conditions require no action.

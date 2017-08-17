@@ -17,17 +17,17 @@ Q(x, \mathbf\Omega, E)
 \label{1dtr}
 \end{eqnarray}
 
-Where $\mathbf\Omega'$ is the post scattering angle in the lab frame and likewise, $E'$ is the post scattering neutron energy.  $\Sigma_t$ is the total macroscopic cross section.  $Q$ is an arbitrary non-fission volumetric neutron source.  The angle $\mathbf\Omega$ has two components; an azimuthal component $\mu$ and zenith angle, $\eta$.
+Where $\mathbf\Omega'$ is the post scattering angle in the lab frame and likewise, $E'$ is the post scattering neutron energy.  $\Sigma_t$ is the total macroscopic cross section.  $Q$ is an arbitrary non-fission volumetric neutron source.  The angle $\mathbf\Omega$ has two components; an azimuthal component $\mu$ and polar angle, $\eta$.
 $\Sigma_s \left(x, E' \rightarrow E , \mathbf\Omega' \cdot \mathbf\Omega \right)$ is sometimes called the differential scattering cross section.  The defines the probability of scattering from $E$ to $E'$ in coincidence with scattering from direction $\mathbf\Omega$ into $\mathbf\Omega'$.  Note the differential cross section depends on the dot product between the incomming and outgoing scattering angles.  
 
-Equation \ref{trop} is referred to as the streaming-collision operator.  This operates on the angular dependent flux, $\psi$, and concisely conveys the redistribution of neutrons in energy and space due to non-fission neutron interactions with matter.
+Equation \ref{trop} is referred to as the streaming-collision operator.  This operates on the angular dependent flux, $\psi$, and concisely conveys the redistribution of neutrons in space due to non-fission neutron interactions with matter.
 \begin{equation}
 H = \left[ \Omega \cdot \nabla + \Sigma_t 
  \right]
 \label{trop}
 \end{equation}
 
-The scattering operator, $S$ is given by equation \ref{scatter_op}.
+The scattering operator, $S$ is given by equation \ref{scatter_op} and governs the redistribution of neutrons in angle and energy due to scattering interactions.
 \begin{equation}
 S = \left[ 
 \int_{E'} dE' \int_{\mathbf\Omega'} d \mathbf\Omega'
@@ -86,7 +86,7 @@ We can rewrite \ref{sexp2} as shown in \ref{sexp3}.
 \label{sexp3}
 \end{eqnarray}
 
-In one dimension, we are only concerned with the azimuthal component, $\mu$, of $\mathbf\Omega$ since the zenith components of the flux are always equal and opposite.  Equation \ref{sexp3} reduces to equation \ref{sexp4}.
+In one dimension, we are only concerned with the azimuthal component, $\mu$, of $\mathbf\Omega$ since the polar components of the flux are symetric about the $y,z$ plane.  Equation \ref{sexp3} reduces to equation \ref{sexp4}.
 \begin{eqnarray}
 & S\psi \approx \nonumber \\
 & \sum_{l=0}^N (2l+1) P_l(\mu) \int dE' \Sigma_{sl}(x, E'\rightarrow E) \phi_l(x, E)
