@@ -74,11 +74,9 @@ class D1solver(object):
         if i == outerIterMax - 1:
             print("Failed to converge k-eigenvalue.")
 
-    def writeData(self, outFile):
-        if self.space == 'dg':
-            fmt = True
-        else:
-            fmt = False
+    def writeData(self, outFile, fmt=True):
+        if self.space is not "dg":
+            fmt=False
         self.solver.writeData(outFile, new_fmt=fmt)
 
 

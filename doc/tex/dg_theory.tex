@@ -24,7 +24,6 @@ Next the equation is integrated over the domain, $x \in [0, L]$:
 \label{1d_tr_weak}
 \end{equation}
 This is known as the weak form of equation \ref{1d_tr_dg}.
-See Appendix A for background on the weak form of the equation.
 
 Next, we integrate the first term in \ref{1d_tr_weak} by parts giving:
 \begin{equation}
@@ -257,11 +256,11 @@ For each element in the mesh we can write the neutron balance as:
 \begin{equation}
 B_{ep_1} + B_{ep_2} + W_e + M_e = S_e
 \end{equation}
-Multiplying both sides by $[\mathbf u]^{-1}$ we obtain:
+Multiplying both sides by $[\mathbf u \mathbf I]^{-1}$ we obtain:
 \begin{equation}
 [b_{ep_1} + b_{ep_2} + w_e + m_e] \mathbf u^T = s_e
 \end{equation}
-Where $w_e= [\mathbf u]^{-1}W_e $, $s_e=[\mathbf u]^{-1} S_e $, and $m_e=[\mathbf u]^{-1}M_e $.  Collapsing further:
+Where $w_e= [\mathbf u \mathbf I]^{-1}W_e $, $s_e=[\mathbf u \mathbf I]^{-1} S_e $, and $m_e=[\mathbf u \mathbf I ]^{-1}M_e $ and $\mathbf I$ is the identity matrix.  Collapsing further:
 \begin{equation}
 [A_e] \mathbf u^T = s_e
 \end{equation}

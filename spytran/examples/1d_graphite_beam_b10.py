@@ -22,7 +22,7 @@ geoFile = pwdpath + '/geometry/1d_graphite_beam_b10.geo'
 attnMat = mx.mixedMat({'c12': 1.0})
 attnMat.setDensity(2.24)
 borMat = mx.mixedMat({'b10': 1.0})
-borMat.setDensity(2.24)
+borMat.setDensity(5.00)
 materialDict = {'mat_1': attnMat,
                 'mat_2': attnMat,
                 'mat_3': borMat}
@@ -42,10 +42,10 @@ slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN, spa
 
 # Solve
 slv.trSolve(residTol=1e-6)
-slv.writeData(pwdpath + '/output/1Dtestout.h5')
+slv.writeData(pwdpath + '/output/1Dtestout.h5', False)
 
 # Plot
-from spytran.dg.dg_post import Fe1DOutput as fe1Dplt
+from spytran.fe.post import Fe1DOutput as fe1Dplt
 plotter = fe1Dplt(pwdpath + '/output/1Dtestout.h5')
 for i in range(nG):
     plotter.plotScalarFlux(i, fname=pwdpath + '/output/scflux.png')
