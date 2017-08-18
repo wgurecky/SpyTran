@@ -42,7 +42,7 @@ class Fe1DOutput(object):
             h5data["groupFlx" + str(g)] = plotData[1]
         h5d.writeToHdf5(h5data, fname)
 
-    def plotScalarFlux(self, g, fname='scflx'):
+    def plotScalarFlux(self, g, fname='scflx', **kwargs):
         """!
         @brief Plots 1D scalar flux for grp g
         Note: for dg meshes - sorting by the x-coordinate
@@ -54,7 +54,8 @@ class Fe1DOutput(object):
         node_x += -(node_x - ele_centroid_x) * 1e-8
         plotData = np.array([node_x, self.angleIntFlux[g]])
         plotData = plotData[:, np.argsort(plotData[0])]
-        sfp.plot1DScalarFlux(plotData[1], plotData[0], label='G' + str(g), fnameOut=fname)
+        sfp.plot1DScalarFlux(plotData[1], plotData[0],
+                             label='G' + str(g), fnameOut=fname, dg=True)
 
     def plotTotalFlux(self, fname='totflx'):
         node_x = self.nodes[:, 4]
@@ -62,7 +63,8 @@ class Fe1DOutput(object):
         node_x += -(node_x - ele_centroid_x) * 1e-8
         plotData = np.array([node_x, self.totFlux])
         plotData = plotData[:, np.argsort(plotData[0])]
-        sfp.plot1DScalarFlux(plotData[1], plotData[0], label='tot', fnameOut=fname)
+        sfp.plot1DScalarFlux(plotData[1], plotData[0],
+                             label='tot', fnameOut=fname, dg=True)
 
 
 class Fe2DOutput(object):

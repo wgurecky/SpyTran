@@ -48,12 +48,14 @@ class Fe1DOutput(object):
         """
         plotData = np.array([self.nodes[:, 1], self.angleIntFlux[g]])
         plotData = plotData[:, np.argsort(plotData[0])]
-        sfp.plot1DScalarFlux(plotData[1], plotData[0], label='G' + str(g), fnameOut=fname)
+        sfp.plot1DScalarFlux(plotData[1], plotData[0],
+                             label='G' + str(g), fnameOut=fname, dg=False)
 
     def plotTotalFlux(self, fname='totflx'):
         plotData = np.array([self.nodes[:, 1], self.totFlux])
         plotData = plotData[:, np.argsort(plotData[0])]
-        sfp.plot1DScalarFlux(plotData[1], plotData[0], label='tot', fnameOut=fname)
+        sfp.plot1DScalarFlux(plotData[1], plotData[0],
+                             label='tot', fnameOut=fname, dg=False)
 
 
 class Fe2DOutput(object):
