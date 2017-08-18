@@ -9,10 +9,8 @@ np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
 class SuperMesh(object):
-    """
-    Contains all region meshes.
-    Contains mappings betwen array/matrix field representation and element class
-    representation.
+    """!
+    @brief Contains all region meshes.
     """
     def __init__(self, gmshMesh, materialDict, bcDict, srcDict, nG, sNords, quadSet, dim=1):
         self.nG, self.sNords = nG, sNords
@@ -66,47 +64,68 @@ class SuperMesh(object):
             A = region.buildRegionA(A, g, o)
         return A
 
-    def sweepFlux(self, tolr):
-        """
-        For each angle and energy, solve a system of linear equations
+    def sweepFlux(self, tolr=1e-6):
+        """!
+        @brief For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
+        @param tolr float.  Linear system solve convergence tolerance.
+            default = 1e-6
         """
-        self.region_ordering = []
         innerResid, gmres_status = 0, 0
         for g in range(self.nG):
             for o in range(self.sNords):
                 self.scFluxField[g, o], gmres_status = \
                     spl.gmres(self.sysA[g, o], self.sysRHS[g, o], tol=tolr, M=self.sysP[g, o])
                 if gmres_status > 0:
-                    print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(gmres_status))
+                    print("WARNING: Linear system solve failed.
+                           Terminated at gmres iter: " + str(gmres_status))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
-            self.region_ordering.append(regionID)
             fluxStor = (self.scFluxField, self.totFluxField)
             region.updateEleFluxes(fluxStor)
         return np.linalg.norm(self.scFluxField) / np.linalg.norm(self.totFluxField), innerResid
 
     def applyBCs(self, depth):
+        """!
+        @brief Iterates through all regions and
+        applies boundary conditions to RHS.
+        """
         for regionID, region in self.regions.iteritems():
             self.sysA, self.sysRHS = region.setBCs(self.sysA, self.sysRHS, depth)
 
     def initFlux(self, scFactor):
+        """!
+        @brief Set flux vector to specified value.
+        @param scFactor  float. Specified flux value.
+        """
         fluxStor = (self.scFluxField, (0.0 * self.totFluxField + 1.0) * scFactor)
         for regionID, region in self.regions.iteritems():
             region.updateEleFluxes(fluxStor)
 
     def getFissionSrc(self):
+        """!
+        @breif Returns fission source vector.
+        @return np_ndarray with shape (n_grp, n_angle, n_space)
+        """
         fissionSrc = 0
         for regionID, region in self.regions.iteritems():
             fissionSrc += region.getFissionSrc()
         return fissionSrc
 
     def resetMeshFlux(self):
+        """!
+        @brief zeros out flux on the entire mesh
+        """
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
         self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
 
     @property
     def global_node_list(self):
+        """!
+        @brief Get element and node info
+        @return np_ndarray of elements and nodes.
+            [[element_id, element_centroid, node_id, node_position],...]
+        """
         global_node_list = []
         for regionID, region in self.regions.iteritems():
             global_node_list.append(region.node_list)
@@ -115,15 +134,13 @@ class SuperMesh(object):
 
 class RegionMesh(object):
     def __init__(self, gmshRegion, fluxStor, material, bcDict, source, **kwargs):
-        """
-        Each region requires a material specification.
+        """!
+        @brief Each region requires a material specification.
 
         Each region requires a node layout specification.
         A 1D mesh has the following structure:
         [[elementID1, x1, x2],
-         [elementID2, x2, x3]
-         ...
-        ]
+         [elementID2, x2, x3]...]
         """
         self.gmshRegion = gmshRegion
         self.dim = kwargs.get("dim")
@@ -146,6 +163,9 @@ class RegionMesh(object):
         self.linkBoundaryElements(gmshRegion)
 
     def _gen_node_list(self, gmshRegion, **kwargs):
+        """!
+        @brief Helper function to generate node and element info
+        """
         self.node_list = []
         for element in gmshRegion['elements']:
             nodeIDs = element[1:]
@@ -160,8 +180,8 @@ class RegionMesh(object):
         self.node_list = np.array(self.node_list)
 
     def buildElements(self, gmshRegion, fluxStor, source, **kwargs):
-        """
-        Initilize and store interior elements.
+        """!
+        @brief Initilize and store interior elements.
         """
         self.elements = {}
         for element in gmshRegion['elements']:
@@ -176,8 +196,8 @@ class RegionMesh(object):
                 self.elements[element[0]] = d2InteriorElement((global_nodeIDs, global_nodePos), fluxStor, source, gmsh_dg_element, **kwargs)
 
     def linkBoundaryElements(self, gmshRegion):
-        """
-        Store boundary elements that border this region.  Link the interior element
+        """!
+        @brief Store boundary elements that border this region.  Link the interior element
         with its corrosponding boundary element
         """
         self.belements = {}  # boundary element dict (empty if subregion contains no boundaries)
@@ -232,10 +252,10 @@ class RegionMesh(object):
         return A
 
     def buildRegionRHS(self, RHS, g, o):
-        """
-        Must be performed before each spatial flux solve.  RHS contains
+        """!
+        @brief Should be called before each spatial flux solve.  RHS contains
         source terms and boundary values.  Source terms are dependent on the
-        previous scattering iterations flux values.
+        previous scattering iteration.
         """
         for elementID, element in self.elements.iteritems():
             nodeIDs, RHSvals = element.getRHS(g, o)
@@ -244,23 +264,36 @@ class RegionMesh(object):
         return RHS
 
     def setBCs(self, A, RHS, depth):
+        """!
+        @brief Applies boundary conditions to both
+        the system matrix A and the RHS.
+        """
         A = self.setRegionBCsA(A, depth)
         RHS = self.setRegionBCsRHS(RHS, depth)
         return A, RHS
 
     def setRegionBCsA(self, A, depth):
+        """!
+        @brief Augments the system matrix where boundary nodes
+        are present.  In the case of a diriclet BC, the row
+        in the matrix at the boundary node is set equal to zero
+        everywhere but on the diagonal.
+        """
         for belementID, belement in self.belements.iteritems():
             A = belement.applyBC2A(A, depth)
         return A
 
     def setRegionBCsRHS(self, RHS, depth):
+        """!
+        @brief Augments the RHS vector at boundary nodes
+        """
         for belementID, belement in self.belements.iteritems():
             RHS = belement.applyBC2RHS(RHS, depth)
         return RHS
 
     def scatterSrc(self, depth, keff):
-        """
-        Perform scattering souce iteration for all elements in region.
+        """!
+        @brief Perform scattering souce iteration for all elements in region.
         """
         for elementID, element in self.elements.iteritems():
             element.sweepOrd(self.skernel, self.chiNuFission, keff, depth)

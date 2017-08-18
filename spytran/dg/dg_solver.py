@@ -129,7 +129,7 @@ class SnDgSlv(object):
             kconv = False
         return self.keff, kconv, self.norm
 
-    def writeData(self, outFileName='1Dfeout.h5', new_fmt=False):
+    def writeData(self, outFileName='1Dfeout.h5', h5_fmt=False):
         """
         Write solution state to hdf5 file.
             - keff (if applicable)
@@ -141,7 +141,7 @@ class SnDgSlv(object):
         # write [[nodeID, nodeX, nodeY, nodeZ],...] vector  (this is gmshMesh.nodes)
         # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
         # write eigenvalue
-        if new_fmt:
+        if h5_fmt:
             node_list = self.superMesh.global_node_list
         else:
             node_list = self.nodes
