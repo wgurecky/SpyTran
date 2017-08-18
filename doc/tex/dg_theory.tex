@@ -50,7 +50,7 @@ and is defined to be zero at all other nodes. Figure \ref{single_ele} displays t
 \label{multi_ele}
 \end{figure}
 
-In practice the transport equation is integrated element-by-element, rather than over the whole domain.  The contribution of each element will be summed together to recover the neutron balance over the whole domain.  For now, we consider an interior element, $e_1$ defined on the sub-region: $[a, b]$.  Figure \ref{multi_ele} shows the interior element $e_1$ bounded by two other elements.  Note that the hypothetical DGFE numerical solution $\psi$ jumps in value at element boundaries.  As a consequence, at element boundaries the solution is double value (in 1D, in higher dimensions it could be $N$-valued).  This is where the Discontinuous Galerkin finite element scheme differs from the more commonly known Continuous Galerkin (CG) FE spatial discretization method.
+In practice the transport equation is integrated element-by-element, rather than over the whole domain.  The contribution of each element will be summed together to recover the neutron balance over the whole domain.  For now, we consider an interior element, $e_1$ defined on the sub-region: $[a, b]$.  Figure \ref{multi_ele} shows the interior element $e_1$ bounded by two other elements.  Note that the hypothetical DGFE numerical solution $\psi$ jumps in value at element boundaries.  As a consequence, at element boundaries the solution is double valued at mesh edges.  This is where the Discontinuous Galerkin finite element scheme differs from the more commonly known Continuous Galerkin (CG) FE spatial discretization method.
 
 Now it is useful to formally define the ramp functions and their linear combination.  Over a single element, the solution $\psi_e(x)$ is given by equation \ref{sol_ele}.
 
@@ -99,8 +99,8 @@ Where $M$ is the number of finite elements used.
 The integral terms in equation \ref{1d_tr_weak_ele} can be expanded to explicitly show their dependence on the scaling factors.  The second term in \ref{1d_tr_weak_ele} integrates to \ref{w_e}.
 
 \begin{equation}
-W_e = -\int_a^b \mu \psi_e \frac{\partial v_e}{\partial x} dx = \frac{-1}{2\mu}(u_{eR}^2 - u_{eL}^2) = 
-\frac{-1}{2\mu} \mathbf u_e 
+W_e = -\int_a^b \mu \psi_e \frac{\partial v_e}{\partial x} dx = \frac{-\mu}{2}(u_{eR}^2 - u_{eL}^2) = 
+\frac{-\mu}{2} \mathbf u_e 
 \begin{bmatrix}
     -1      & 1 \\
     -1       & 1 
@@ -151,14 +151,14 @@ Finally, we must deal with the boundary term which arose from integrating the fi
 It is useful to define a jump and average condition on an element boundary.
 The average condition at the junction between two elements is given by \ref{avg}.
 \begin{equation}
-\{\{u\}\}_p = \frac{1}{2} (\lim_{x \to p^+} u_{p} + \lim_{x \to p^-} u_{p})
+\{\{u\}\}_p = \frac{1}{2} (\lim_{x \to p^+} \psi(x) + \lim_{x \to p^-} \psi(x))
 \label{avg}
 \end{equation}
 Where the subscript $p$ denotes evaluation at a boundary. Since $\psi(x)|_p$ and therefore $u_p$ is double valued at the element boundaries; the limit approaching from the left is not equal to the limit approaching from the right.
 
 And the jump is provided by equation \ref{jmp}.
 \begin{equation}
-[[u]]_p =  (\lim_{x \to p^+} u_{p} - \lim_{x \to p^-} u_{p})
+[[u]]_p =  (\lim_{x \to p^+} \psi(x) - \lim_{x \to p^-} \psi(x))
 \label{jmp}
 \end{equation}
 
@@ -188,10 +188,10 @@ In this case, when evaluating $\mu \psi_e(x) v(x)|_a^b$, $\psi(x)$ always takes 
 \mu \cdot \mathbf n \hat{F}  = \mu \cdot \mathbf n \psi^{\uparrow} 
 \end{equation}
 
-This makes physical sense if the neutrons are constrained to flow in the direction $\mu$ by the discrete ordinates approximation.  The value of angular dependent neutron flux at the element boundaries should depend only on the neutron's behavior immediately upstream of the boundary.  In other words, all neutron interactions downstream of the boundary do not have a large influence on the upstream flux.  This is true particularly in the case of the once-scattered flux.  It was not discussed in this work, but equation \ref{1d_tr_weak} is written for a single scattering source iteration (SI), which means equation \ref{1d_tr_weak} is equivalent to the one-scattered transport balance.  For more information on source iteration, see E.E. Lewis's text \cite{Lewis}.
+This makes physical sense if the neutrons are constrained to flow in the direction $\mu$ by the discrete ordinates approximation.  The value of angular dependent neutron flux at the element boundaries should depend only on the neutron's behavior immediately upstream of the boundary.  In other words, all neutron interactions downstream of the boundary do not have a large influence on the upstream flux.  This is true particularly in the case of the once-collided flux.  It was not discussed in this work, but equation \ref{1d_tr_weak} is written for a single scattering source iteration (SI).  For more information on source iteration, see E.E. Lewis's text \cite{Lewis}.
 
 Equation \ref{dg_fe_bound} can now be evaluated.
-If $\mu \cdot \mathbf n \leq 0$: 
+If $\mu \cdot \mathbf n > 0$: 
 \begin{equation}
 B_{ep_1} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_1} = 
 \mu \cdot \mathbf n (u_e^2)|_p = 
@@ -204,7 +204,7 @@ B_{ep_1} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_1} =
 \end{equation}
 Where $\mathbf u_p = [u_e, u_k]|_p$.  Again, $u_k|_p$ is the value of $\psi$ as the neighboring element approaches the boundary (i.e $u_k=\lim_{x \to p^k}\psi(x)$)  and likewise, $u_e|_p=\lim_{x \to p^e}\psi(x)$.
 
-If $\mu \cdot \mathbf n > 0$:
+If $\mu \cdot \mathbf n \leq 0$:
 \begin{equation}
 B_{ep_2} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_2} = 
 \mu \cdot \mathbf n (u_e \cdot u_k)|_p = 
@@ -223,16 +223,16 @@ And the sum over both edges is given by \ref{ele_sum}.
 \end{equation}
 
 \subsubsection{Average Flux Formulation}
-Alternatively, instead of simply taking the upwind flux value at each element boundary, one may choose to use the average flux at each boundary.  This results in the following:
+Alternatively, instead of simply taking the upwind flux value at each element boundary, one may choose to use the average flux, $\{\{u\}\}_p$ at each boundary.  This results in the following:
 
 If $\mu \cdot \mathbf n \leq 0$: 
 \begin{equation}
 B_{ep_1} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_1} = 
-\mu \cdot \mathbf n 0.5 (u_e + u_k)|_p = 
+\mu \cdot \mathbf n \frac{1}{2} (u_e + u_k)|_p = 
 (\mu \cdot \mathbf n) \mathbf u_p 
 \begin{bmatrix}
-    0.5     & 0 \\
-    0.5     & 0 
+    1/2     & 0 \\
+    1/2     & 0 
 \end{bmatrix}
 \mathbf u_p^T
 \end{equation}
@@ -240,11 +240,11 @@ and
 If $\mu \cdot \mathbf n > 0$:
 \begin{equation}
 B_{ep_2} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_2} = 
-\mu \cdot \mathbf n 0.5 (u_e + u_k)|_p = 
+\mu \cdot \mathbf n  \frac{1}{2} (u_e + u_k)|_p = 
 (\mu \cdot \mathbf n) \mathbf u_p 
 \begin{bmatrix}
-    0.5     & 0 \\
-    0.5     & 0 
+    1/2     & 0 \\
+    1/2     & 0 
 \end{bmatrix}
 \mathbf u_p^T
 \end{equation}
@@ -253,10 +253,29 @@ This formulation makes physical sense in the case that upstream and downstream i
 
 \subsubsection{System Matrix Construction and Boundary Conditions}
 
-The goal is to find the combination of the scaling factors on all elements simultaneously which best satisfies the overall weak form of the neutron balance equation \ref{1d_tr_weak}.  One can think of the finite element method in an optimization context in which some (hopefully unique) combination of the scalars $\{u_0, u_1, ...\}$ reduces the residual of \ref{1d_tr_weak} to some minimal value.
+For each element in the mesh we can write the neutron balance as:
+\begin{equation}
+B_{ep_1} + B_{ep_2} + W_e + M_e = S_e
+\end{equation}
+Multiplying both sides by $[\mathbf u]^{-1}$ we obtain:
+\begin{equation}
+[b_{ep_1} + b_{ep_2} + w_e + m_e] \mathbf u^T = s_e
+\end{equation}
+Where $w_e= [\mathbf u]^{-1}W_e $, $s_e=[\mathbf u]^{-1} S_e $, and $m_e=[\mathbf u]^{-1}M_e $.  Collapsing further:
+\begin{equation}
+[A_e] \mathbf u^T = s_e
+\end{equation}
+
+The goal is to find the combination of the scaling factors, $\mathbf u=\{u_0, u_1, ...\}$, over all elements that best satisfies the overall weak form of the neutron balance equation \ref{1d_tr_weak}.  One can think of the finite element method in an optimization context in which some (hopefully unique) combination of the scalars $\mathbf u =\{u_0, u_1, ...\}$ reduces the residual of \ref{1d_tr_weak} to some minimal value.
  
- To construct the system matrix A, the individual element matrices are ``stamped'' into A. Since
-each node is assigned a unique ID the elements of A e can be copied into the global A.
+ To assemble the system matrix $\mathbf A$, the individual element matrices are ``stamped'' into $\mathbf A$. Since
+each node in the mesh is assigned a \emph{unique ID} the elements of $A_e$ can be copied into the global matrix $\mathbf A$.
+
+After $\mathbf A$ is constructed, the discretized, non-multiplying transport equation can be written as:
+\begin{equation}
+\mathbf A \mathbf u^T = \mathbf s
+\end{equation}
+$\mathbf A$ is a sparse, non symmetric matrix. This linear system of equations can be solved by GMRES or other iterative techniques.
  
 Up until this point we have disregarded the application of boundary conditions since we focused on the interior elements.  For the first order transport equation, all boundary conditions (vacuum, reflective, white) can be
 described as either fixed or free. A Fixed boundary condition specifies the value of $\psi$ at the boundary.
