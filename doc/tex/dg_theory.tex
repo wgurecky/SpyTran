@@ -171,7 +171,7 @@ Now it is useful define the ``upwind'' flux.  According to \ref{upwind}, the sig
   \end{cases}
 \label{upwind}
 \end{equation}
-Where $k$ represent the neighboring element and $e$ is the current element.
+Where $k$ represents the neighboring element and $e$ is the current element.
 
 It is unclear what value to choose for the flux at the element boundaries.  This is required to evaluate $\mu \psi_e(x) v_e(x)|_a^b$ in \ref{1d_tr_weak_ele}. The DGFE method introduces the numerical flux $\mu \cdot \mathbf n \hat{F} $ to resolve this issue.  The boundary term becomes \ref{dg_fe_bound}.
 
@@ -201,7 +201,7 @@ B_{ep_1} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_1} =
 \end{bmatrix}
 \mathbf u_p^T
 \end{equation}
-Where $\mathbf u_p = [u_e, u_k]|_p$.  Again, $u_k|_p$ is the value of $\psi$ as the neighboring element approaches the boundary (i.e $u_k=\lim_{x \to p^k}\psi(x)$)  and likewise, $u_e|_p=\lim_{x \to p^e}\psi(x)$.
+Where $\mathbf u_p = [u_e, u_k]|_p$.  Again, $u_k|_p$ is the value of $\psi$ as the boundary from the neighboring element side (i.e $u_k=\lim_{x \to p^k}\psi(x)$)  and likewise for the current element side: $u_e|_p=\lim_{x \to p^e}\psi(x)$.
 
 If $\mu \cdot \mathbf n \leq 0$:
 \begin{equation}
@@ -227,7 +227,7 @@ Alternatively, instead of simply taking the upwind flux value at each element bo
 If $\mu \cdot \mathbf n \leq 0$: 
 \begin{equation}
 B_{ep_1} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_1} = 
-\mu \cdot \mathbf n \frac{1}{2} (u_e + u_k)|_p = 
+\mu \cdot \mathbf n \frac{u_e}{2} (u_e + u_k)|_p = 
 (\mu \cdot \mathbf n) \mathbf u_p 
 \begin{bmatrix}
     1/2     & 0 \\
@@ -239,7 +239,7 @@ and
 If $\mu \cdot \mathbf n > 0$:
 \begin{equation}
 B_{ep_2} = \mu \cdot \hat{\mathbf n} \hat{F}  v(x)|_{p_2} = 
-\mu \cdot \mathbf n  \frac{1}{2} (u_e + u_k)|_p = 
+\mu \cdot \mathbf n  \frac{u_e}{2} (u_e + u_k)|_p = 
 (\mu \cdot \mathbf n) \mathbf u_p 
 \begin{bmatrix}
     1/2     & 0 \\
