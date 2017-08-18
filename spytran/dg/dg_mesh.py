@@ -71,6 +71,7 @@ class SuperMesh(object):
         For each angle and energy, solve a system of linear equations
         to update the flux scalar field on the mesh.
         """
+        self.region_ordering = []
         innerResid, gmres_status = 0, 0
         for g in range(self.nG):
             for o in range(self.sNords):
@@ -80,6 +81,7 @@ class SuperMesh(object):
                     print("WARNING: Linear system solve failed.  Terminated at gmres iter: " + str(gmres_status))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
+            self.region_ordering.append(regionID)
             fluxStor = (self.scFluxField, self.totFluxField)
             region.updateEleFluxes(fluxStor)
         return np.linalg.norm(self.scFluxField) / np.linalg.norm(self.totFluxField), innerResid

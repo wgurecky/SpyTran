@@ -12,8 +12,8 @@ class D1solver(object):
         lOrder = kwargs.pop('lOrder', 8)
         sNords = kwargs.pop('sN', 2)
         dim = kwargs.pop('dim', 1)
-        solver = kwargs.pop('space', 'dg')
-        if solver == 'fe':
+        self.space = kwargs.pop('space', 'dg')
+        if self.space == 'fe':
             self.solver = feslv.SnFeSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
         else:
             self.solver = dgslv.SnDgSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
@@ -75,7 +75,11 @@ class D1solver(object):
             print("Failed to converge k-eigenvalue.")
 
     def writeData(self, outFile):
-        self.solver.writeData(outFile)
+        if self.space == 'dg':
+            fmt = True
+        else:
+            fmt = False
+        self.solver.writeData(outFile, new_fmt=fmt)
 
 
 if __name__ == "__main__":

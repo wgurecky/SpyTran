@@ -128,7 +128,7 @@ class SnFeSlv(object):
             kconv = False
         return self.keff, kconv, self.norm
 
-    def writeData(self, outFileName='1Dfeout.h5'):
+    def writeData(self, outFileName='1Dfeout.h5', **kwargs):
         """
         Write solution state to hdf5 file.
             - keff (if applicable)
