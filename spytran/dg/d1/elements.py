@@ -16,7 +16,11 @@ class d1InteriorElement(object):
     """
     def __init__(self, nodes, fluxStor, source, gmsh_dg_element, **kwargs):
         """
-        takes ([nodeIDs], [nodePos]) tuple.
+        @brief  Creates a 1D discontinuous galerkin finite element.
+        @param nodes ([nodeIDs], [nodePos]) tuple.
+        @param fluxStor  (np_ndarray, np_ndarray) tuple of np arrays. Storage for flux
+        @param source  np_ndarray storage for scattering source
+        @param gmsh_dg_element  dict storing mesh connectivity infor
         Optionally specify number of groups, leg order and number of ordinates
         """
         #
@@ -31,15 +35,14 @@ class d1InteriorElement(object):
         #
         # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
-        self._computeDeltaX()  # Compute deltaX
+        self._computeDeltaX()
         #
         # Flux and source storage
         self.setEleScFlux(fluxStor[0])
         self.setEleTotFlux(fluxStor[1])
         #
         # Scattering Source term(s)
-        self.qin = np.zeros((self.nG, self.sNords))         # init scatter/fission source
-        self.previousQin = np.ones(self.qin.shape)  # required for over relaxation
+        self.qin = np.zeros((self.nG, self.sNords))  # init scatter/fission source
         #
         # Volumetric source
         self.S = source
@@ -250,31 +253,27 @@ class d1InteriorElement(object):
 
 class d1BoundaryElement(object):
     """
-    In 1D boundary conditions are specified on a node.
-    Equivillent to a boundary element in 2D.
-    Contains methods to compute face normals needed for setting vacuume and
-    reflective boundary conditions.
-
-    Notes:
-        Boundary condition assignment only works for CONVEX shapes.
-        No interior corners allowed!!
+    @brief In 1D boundary conditions are specified on a node.
+    Synonymous with a boundary edge in 2D.
     """
     def __init__(self, bcData, nodes, parentElement):
         """
-        bcType is a str:  "vac" or "ref"
+        @param bcData is a str in {"vac", "ref"} or is a np_ndarray for fixed flux
+        @param nodes tuple.  (nodeIDs, node_positions) np_1d arrays
+        @param parentElement d1InteriorElement instance
+
+        Note:
         Requres interior element on which the boundary node resides.
         This is required for computing the outward normals.
 
-        x---Eb----o----Ei----o----Ei--
+            x---Eb----o----Ei----o----Ei--
 
         where x is the boundary node, o are interior nodes and Eb is the
         boundary element.
+        Stores node IDs in element and node positions.
+        Link to the parent element which contains the boundary element.
         """
-        # Store node IDs in element and node positions
         self.nodeIDs, self.nodeVs = nodes
-        # Link to the parent element.  parent element class contains
-        # ordinate direction and node location info required to determine
-        # outward normals
         self.parent = parentElement
         self.bcData = bcData  # could be a string e.g: 'vac', or could be a dict
         self.computeOutNormal()
@@ -329,15 +328,16 @@ class d1BoundaryElement(object):
         # obtain odd man out node
         lonelyNodeV = np.setdiff1d(self.parent.nodeVs, self.nodeVs)
         # In 2D and 3D we must find orthogonal line to surface/line
-        # TODO: THIS IS THE FRIGGIN DG BUG.  OUTWARD NORMAL IS
+        # TODO: THIS IS A FRIGGIN BUG.  OUTWARD NORMAL IS
         # NO LONGER COMPUTED CORRECTLY HERE (MOVED TO MESH DEF)
         # import pdb; pdb.set_trace()
-        # self.outwardNormal = (commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)  # broke
         self.outwardNormal = -(commonNodeV - lonelyNodeV) / np.abs(commonNodeV - lonelyNodeV)  # tmp fix
 
     def computeInOrds(self):
-        """ Compute inward ordinate directions.  Those ords with dot product with the
-        outward normal negative """
+        """!
+        @brief Compute inward ordinate directions.
+        Those ords with dot product with the outward normal negative
+        """
         # Works for 1D only at the moment, simple inspection of the
         # magnitude of multiplication of direction
         # cosines works fine.
@@ -346,7 +346,8 @@ class d1BoundaryElement(object):
         self.outOs = np.where(faceDot >= 0)
 
     def vacBC2A(self, A):
-        """
+        """!
+        @brief Apply vac boundary condtion to system matrix
         Vaccume boundary only applied to inward ordinates at boundary.
         This manifests itself as a row in the A matrix being 0 everywhre but
         at the ordinaties facing inwards at the boundary node.
@@ -361,7 +362,8 @@ class d1BoundaryElement(object):
         return A
 
     def fixedBC2A(self, A):
-        """
+        """!
+        @brief Apply fixed flux bounday condtion to system matrix
         Since the flux is _specified_ for the bc nodes (atleast on scatter iter 0)
         for the boundary node in question; zero out its row in the A matrix everywhere
         but at the diagonal.  We are after 1 * flux_o_g = specified_flux_o_g
@@ -373,24 +375,24 @@ class d1BoundaryElement(object):
         return A
 
     def vacBC(self, RHS):
-        """
-        RHS for all groups, g,  and for inward facing ordinates, are set to
+        """!
+        @brief RHS for all groups, g,  and for inward facing ordinates, are set to
         zero.
         """
         RHS[:, self.inOs, self.nodeIDs] = 0
         return RHS
 
     def refBC(self, RHS):
-        """
-        Apply reflected flux dirichletBC.  Take banked fluxes on the outer surface
-        and add to the RHS.
+        """!
+        @brief Apply reflected flux dirichletBC to RHS.
+        Take banked fluxes on the outer surface and add to the RHS.
         """
         RHS[:, self.inOs, self.nodeIDs] = self.bankedRefFlux[:, self.inOs, self.internalBCnodeIDs]
         return RHS
 
     def dirichletBC(self, RHS):
-        """
-        Fixed flux bc.
+        """!
+        @brief Fixed flux bc.
         """
         for bcNodeID in self.nodeIDs:
             RHS[:, :, bcNodeID] = self.bcData

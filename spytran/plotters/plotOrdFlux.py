@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 
 
 def cart2pol(x, y):
-    """Convert from Cartesian to polar coordinates.
-
+    """!
+    @brief Convert from Cartesian to polar coordinates.
+    @param x np_1darray. cart x coord
+    @param y np_1darray. cart y coord
     Example
     -------
     >>> theta, radius = pol2cart(x, y)
@@ -15,7 +17,10 @@ def cart2pol(x, y):
 
 
 def compass(angles, radii, arrowprops=dict(color='blue', linewidth=3), figNum=6, figName='polarFlux'):
-    """
+    """!
+    @brief Polar plot of angular flux
+    @param angles np_1darray of angles in radians
+    @param radii np_1darray scaled radii
     """
     plt.figure(figNum)
     # angles, radii = cart2pol(u, v)
