@@ -1,5 +1,4 @@
 %-----------------------------------------------------------------------------%
-\section{Introduction}
 
 Commonly when dealing with the spatial discretization of the transport equation
 an explicit finite differencing scheme is employed. An explicit differencing
@@ -18,9 +17,9 @@ to construct a differencing scheme for arbitrary non rectilinear meshes, but it
 would require pre-computing a “sweep map” which determines the node order in
 which the mesh is swept such that the stability of the method is preserved. In
 addition the differencing equations themselves become slightly more cumbersome
-to generate as the nodes are no longer at right angles to each other. This
-approach is interesting, but is not the focus of this project.  Other spatial
-discetization techniques are well suited for irregular meshes. Common
+to generate as the nodes are no longer at right angles to each other.
+
+Other spatial discretization techniques are well suited for irregular meshes. Common
 strategies for discretizing PDE’s on irregular meshes are the finite volume and
 the finite element techniques. We will focus on the finite element method in
 this work. Specifically, this work involves the application of discontinuous
@@ -31,7 +30,7 @@ to approximate the solution of hyperbolic PDEs \cite{lesaint}. One of the first 
 method was to the radiation transport equation \cite{reed}. The
 DG method was later extended to elliptic and parabolic equations \cite{riviere}.  Today,
 DG methods are extraordinarily pervasive in the numerical and applied mathematics
-communities.  This is due to the compact nature of the scheme allowing for excellent
+communities.  DG's popularity is due to the compact nature of the discretization scheme allowing for excellent
 scaling on many CPUs and due to ease of increasing the order of accuracy of the
 solution approximation over an element.  It also allows one to tailor the coupling between
 neighboring elements by adjusting the so-called numerical flux which conveys information
@@ -39,7 +38,14 @@ about the transport of the conserved quantity across cell boundaries.
 
 Since the solution approximation afforded by the DG method does not enforce continuity at
 element boundaries it is possible to capture sharp discontinuities in the field
-of interest naturally.  This is advantageous for compressible flow applications in which
-shocks may develop.  Additionally, this property is important for radiation transport problems
-in which the flux jumps across extremely thin highly absorptive coatings.
+of interest naturally.  This property is important for radiation transport problems
+in which the flux jumps across extremely thin highly absorptive coatings;
 Such is the case in simulations of IFBA fuel.
+
+It is also worth mentioning that this work is an extension of the methods introduced in
+the computational methods in radiation transport graduate course offered at the University
+of Texas at Austin.  The theory and consequences of applying the discrete ordinate treatment to the angular
+dependence and the multigroup approximation of the energy dependence is left to the
+bulk of the course material.
+The text: Computational Methods of Neutron Transport by E.E. Lewis \cite{Lewis}
+covers these basics in detail as well.

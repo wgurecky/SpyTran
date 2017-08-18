@@ -103,6 +103,13 @@ class SuperMesh(object):
         self.scFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
         self.totFluxField = np.zeros((self.nG, self.sNords, self.nNodes))
 
+    @property
+    def global_node_list(self):
+        global_node_list = []
+        for regionID, region in self.regions.iteritems():
+            global_node_list.append(region.node_list)
+        return np.vstack(tuple(global_node_list))
+
 
 class RegionMesh(object):
     def __init__(self, gmshRegion, fluxStor, material, bcDict, source, **kwargs):
@@ -133,7 +140,22 @@ class RegionMesh(object):
             #source = kwargs.pop("source", None)
         # Build elements in the region mesh
         self.buildElements(gmshRegion, fluxStor, source, **kwargs)
+        self._gen_node_list(gmshRegion, **kwargs)
         self.linkBoundaryElements(gmshRegion)
+
+    def _gen_node_list(self, gmshRegion, **kwargs):
+        self.node_list = []
+        for element in gmshRegion['elements']:
+            nodeIDs = element[1:]
+            gmsh_dg_element = gmshRegion['dg_elements'][int(element[0])]
+            global_nodeIDs = gmsh_dg_element['global_nodeIDs']
+            global_nodePos = gmsh_dg_element['vertex_pos']
+            element_centroid = gmsh_dg_element['centroid']
+            for glb_id, glb_pos in zip(global_nodeIDs, global_nodePos):
+                self.node_list.append(
+                        [glb_id] + list(element_centroid) + list(glb_pos)
+                        )
+        self.node_list = np.array(self.node_list)
 
     def buildElements(self, gmshRegion, fluxStor, source, **kwargs):
         """
@@ -145,11 +167,9 @@ class RegionMesh(object):
             gmsh_dg_element = gmshRegion['dg_elements'][int(element[0])]
             global_nodeIDs = gmsh_dg_element['global_nodeIDs']
             if self.dim == 1:
-                # nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
                 global_nodePos = gmsh_dg_element['vertex_pos'][:, 0]
                 self.elements[element[0]] = d1InteriorElement((global_nodeIDs, global_nodePos), fluxStor, source, gmsh_dg_element, **kwargs)
             else:
-                # nodePos = np.array([gmshRegion['nodes'][nodeID][1:3] for nodeID in nodeIDs])
                 global_nodePos = gmsh_dg_element['vertex_pos'][:, 0:2]
                 self.elements[element[0]] = d2InteriorElement((global_nodeIDs, global_nodePos), fluxStor, source, gmsh_dg_element, **kwargs)
 
@@ -168,21 +188,15 @@ class RegionMesh(object):
                                                            dg_element_node['gmsh_nodeIDs'],
                                                            dg_element_node['vertex_pos']):
                         if gmsh_node_id in nodeIDs:
-                            # CHANGE TO GLOBAL rather than original GMSH
-                            # global_nodeIDs.append(gmsh_node_id)
-                            # FIXED?
                             global_nodeIDs.append(global_id)
                             if self.dim == 1:
                                 global_nodePos.append(gmsh_node_pos[0])
                             elif self.dim == 2:
                                 global_nodePos.append(gmsh_node_pos[0:2])
                     if self.dim == 1:
-                        # nodePos = [gmshRegion['nodes'][nodeID][1] for nodeID in nodeIDs]
-                        # import pdb; pdb.set_trace()
                         self.belements[bcElmID] = d1BoundaryElement(self.bcDict[bctype], (global_nodeIDs,
                                                                     global_nodePos), self.elements[bcElmID])
                     else:
-                        # nodePos = np.array([gmshRegion['nodes'][nodeID][1:3] for nodeID in nodeIDs])
                         self.belements[bcElmID] = d2BoundaryElement(self.bcDict[bctype], (global_nodeIDs,
                                                                     np.array(global_nodePos)), self.elements[bcElmID])
 
@@ -206,7 +220,6 @@ class RegionMesh(object):
             nodeIDs, sysVals = element.getElemMatrix(g, o, self.totalXs)
             neighbor_nodeIDs, neighbor_sysVals = element.getNeighborMatrix(g, o, self.totalXs)
             if len(neighbor_nodeIDs) == 1:
-                # print(self.gmshRegion['dg_elements'][elementID]['vertex_pos'])
                 n_boundary_elements += 1
             elif len(neighbor_nodeIDs) == 2:
                 n_interior_elements += 1
@@ -214,9 +227,6 @@ class RegionMesh(object):
                 A[nodeID] += sysVal
             for neighbor_nodeID, neighbor_sysVal in zip(neighbor_nodeIDs, neighbor_sysVals):
                 A[neighbor_nodeID] += neighbor_sysVal
-        # print("n_boundary_elements = %d" % n_boundary_elements)
-        # print("n_interior_elements = %d" % n_interior_elements)
-        # print("===========")
         return A
 
     def buildRegionRHS(self, RHS, g, o):
