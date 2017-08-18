@@ -11,6 +11,6 @@ Physical Line(102) = {2};   // mat=mat_2
 Physical Line(103) = {3};   // mat=mat_1
 Physical Point(10) = {1};   // bc=bc1
 Physical Point(20) = {4};   // bc=bc2
-Transfinite Line {1} = 20 Using Progression 1;
-Transfinite Line {2} = 40 Using Progression 1;
-Transfinite Line {3} = 20 Using Progression 1;
+Transfinite Line {1} = 5 Using Progression 1;
+Transfinite Line {2} = 10 Using Progression 1;
+Transfinite Line {3} = 5 Using Progression 1;

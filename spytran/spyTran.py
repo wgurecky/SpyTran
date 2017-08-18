@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import division
 from fe import solver as feslv
+from dg import dg_solver as dgslv
 import numpy as np
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
@@ -11,7 +12,11 @@ class D1solver(object):
         lOrder = kwargs.pop('lOrder', 8)
         sNords = kwargs.pop('sN', 2)
         dim = kwargs.pop('dim', 1)
-        self.solver = feslv.SnFeSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
+        self.space = kwargs.pop('space', 'dg')
+        if self.space == 'fe':
+            self.solver = feslv.SnFeSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
+        else:
+            self.solver = dgslv.SnDgSlv(geoFile, materialDict, bcDict, srcDict, nG, lOrder, sNords, dim)
 
     def trSolve(self, residTol=0.5e-5):
         """
@@ -69,8 +74,10 @@ class D1solver(object):
         if i == outerIterMax - 1:
             print("Failed to converge k-eigenvalue.")
 
-    def writeData(self, outFile):
-        self.solver.writeData(outFile)
+    def writeData(self, outFile, fmt=True):
+        if self.space is not "dg":
+            fmt=False
+        self.solver.writeData(outFile, new_fmt=fmt)
 
 
 if __name__ == "__main__":

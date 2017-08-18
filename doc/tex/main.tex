@@ -1,0 +1,55 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[a4paper, total={6.25in, 9in}]{geometry}
+\usepackage{setspace}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{bm}
+\usepackage{bbm}
+\usepackage{lipsum}
+\usepackage{graphicx}
+\usepackage[version=3]{mhchem} % Package for chemical equation typesetting \ce{}
+\usepackage{siunitx} % Provides the \SI{}{} and \si{}
+
+\author{William Gurecky}
+\title{DG Methods for Radiation Transport}
+
+\begin{document}
+
+%=================================TITLE=======================================%
+%-----------------------------------------------------------------------------%
+\input{title.tex}
+
+%-----------------------------------------------------------------------------%
+\input{acryn.tex}
+
+%=================================BODY========================================%
+\onehalfspacing
+%-----------------------------------------------------------------------------%
+\chapter{Introduction}
+\label{chap:intro}
+\input{intro.tex}
+
+%-----------------------------------------------------------------------------%
+\chapter{Theory}
+\label{chap:lit}
+\input{theory.tex}
+\input{dg_theory.tex}
+
+%-----------------------------------------------------------------------------%
+\chapter{Results}
+\label{chap:res}
+\input{results.tex}
+
+%-----------------------------------------------------------------------------%
+\chapter{Conclusion}
+\label{chap:conc}
+\input{conclusion.tex}
+
+%-----------------------------------------------------------------------------%
+\input{references.tex}
+
+\end{document}

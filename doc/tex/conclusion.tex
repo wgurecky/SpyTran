@@ -1,0 +1,15 @@
+%-----------------------------------------------------------------------------%
+
+The DGFE method was introduced and implemented in 1D.   The current implementation could serve as a starting point to more detailed investigations stated below.
+
+It was shown that DGFE allows for a flexible definition of the numerical flux and that this choice has a significant impact on the resulting numerical approximation.
+
+In the case of a thin absorbing boron region in a graphite block, sharp changes in the flux were captured.
+
+A mesh convergence study could be performed in the future to experimentally determine the spatial order of convergence of the DGFE scheme.  Additionally, the results could be benchmarked against gold-standard monte-carlo simulations to ascertain the accuracy of the method, particularly when thin absorptive regions are present in the domain.
+
+Improving the order of accuracy of the finite element discretization is a potential avenue for future work. This would involve increasing the polynomial order of the ramp basis functions over each element from 1 to 2. Future studies could also investigate parallelization strategies. In some respects, it easy to parallelize the spatial transport solve because each angle and energy independent $\mathbf A \mathbf u^T = \mathbf s$ system can be solved independently. In addition, the scattering source can be updated in each element independently.
+
+It has been shown that the DGFE method ``locks'' in the optically thick diffusion limit, meaning, the flux is artificially depressed in regions that are highly opaque and highly diffusive to neutrons.  For most practical problems this is not a concern, however, it could be interesting to investigate the work performed by J. Guermond et. al (2014) \cite{Guermond2014} on this subject.  Guermond et. al. present a method to adaptively choose between the unwinding and averaging formulation in each element independently based on the local scattering cross section and cell width.  This has been shown to effectively eliminate this issue with the DGFE method without significant additional computational overhead.
+
+The code is available online at https://github.com/wgurecky/spyTran.

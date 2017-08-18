@@ -6,12 +6,12 @@ from spytran.utils.ordReader import gaussLegQuadSet
 from spytran.utils.ordReader import D2quadSet
 from spytran.utils.gmshPreproc import gmsh1DMesh
 from spytran.utils.gmshPreproc import gmsh2DMesh
-from mesh import SuperMesh
+from dg_mesh import SuperMesh
 np.set_printoptions(linewidth=200)  # set print to screen opts
 warnings.filterwarnings("ignore")
 
 
-class SnFeSlv(object):
+class SnDgSlv(object):
     """
     High level solver tasks reside here. e.g:
         - Make transport operator (matirx A)
@@ -34,14 +34,15 @@ class SnFeSlv(object):
         elif dim == 2:
             quadSet = D2quadSet(sN)
             self.sNords, self.wN = quadSet.sNords, quadSet.wN
-        self.maxLegOrder = legOrder                             # remember to range(maxLegORder + 1)
-        self.nG = nGroups                                       # number of energy groups
+        self.maxLegOrder = legOrder                            # remember to range(maxLegORder + 1)
+        self.nG = nGroups                                      # number of energy groups
         #
         if dim == 1:
             gmshMesh = gmsh1DMesh(geoFile=geoFile)  # Run gmsh
         elif dim == 2:
             gmshMesh = gmsh2DMesh(geoFile=geoFile)  # Run gmsh
-        self.nodes = gmshMesh.nodes
+        gmshMesh.enable_connectivity()  # link element neighbors
+        self.nodes = gmshMesh.global_nodes
         self.superMesh = SuperMesh(gmshMesh, materialDict, bcDict, srcDict,
                                    nGroups, self.sNords, quadSet, dim)    # build the mesh
         self.depth = 0  # scattering source iteration depth
@@ -128,7 +129,7 @@ class SnFeSlv(object):
             kconv = False
         return self.keff, kconv, self.norm
 
-    def writeData(self, outFileName='1Dfeout.h5', **kwargs):
+    def writeData(self, outFileName='1Dfeout.h5', h5_fmt=False):
         """
         Write solution state to hdf5 file.
             - keff (if applicable)
@@ -140,7 +141,18 @@ class SnFeSlv(object):
         # write [[nodeID, nodeX, nodeY, nodeZ],...] vector  (this is gmshMesh.nodes)
         # write [[nodeID, fluxValue]...] vector  (this is the totFluxField)
         # write eigenvalue
-        h5data = {'nodes': self.nodes, 'ordFluxes': self.superMesh.totFluxField,
+        if h5_fmt:
+            node_list = self.superMesh.global_node_list
+        else:
+            node_list = self.nodes
+        h5data = {'nodes': node_list, 'ordFluxes': self.superMesh.totFluxField,
                   'keff': self.keff, 'fluxNorm': self.norm, 'weights': self.wN,
                   'nGrp': self.nG, 'scrIters': self.depth}
         h5d.writeToHdf5(h5data, outFileName)
+
+    def _link_dg_ele_nodes(self):
+        """!
+        @brief Creates a list of nodes with their corrosponding element ids.
+        """
+        for region in self.superMesh.regions.iteritems():
+            pass

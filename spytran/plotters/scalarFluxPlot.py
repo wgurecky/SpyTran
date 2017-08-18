@@ -2,9 +2,15 @@ import pylab as plt
 import numpy as np
 
 
-def plot1DScalarFlux(fluxVec, meshX, enableYlog=False, fnameOut='fluxS', figNum=1, label='grpFlux', legend=True):
+def plot1DScalarFlux(fluxVec, meshX, enableYlog=False, fnameOut='fluxS',
+                     figNum=1, label='grpFlux', legend=True, **kwargs):
+    dg_bool = kwargs.get('dg', True)
+    dg_bool = True
     plt.figure(figNum)
-    plt.plot(meshX, fluxVec, linewidth='4', label=label)
+    if dg_bool:
+        plt.plot(meshX, fluxVec, 'o-', mfc='none', linewidth='1', ms=3, label=label)
+    else:
+        plt.scatter(meshX, fluxVec, s=1)
     plt.ylabel("Flux (Arbitrary Scaling)")
     plt.xlabel("Position [cm]")
     if enableYlog:
