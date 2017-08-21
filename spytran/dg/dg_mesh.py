@@ -77,7 +77,7 @@ class SuperMesh(object):
                 self.scFluxField[g, o], gmres_status = \
                     spl.gmres(self.sysA[g, o], self.sysRHS[g, o], tol=tolr, M=self.sysP[g, o])
                 if gmres_status > 0:
-                    print("WARNING: Linear system solve failed.
+                    print("WARNING: Linear system solve failed. \
                            Terminated at gmres iter: " + str(gmres_status))
         self.totFluxField += self.scFluxField
         for regionID, region in self.regions.iteritems():
@@ -128,7 +128,7 @@ class SuperMesh(object):
         """
         global_node_list = []
         for regionID, region in self.regions.iteritems():
-            global_node_list.append(region.node_list)
+            global_node_list.append(region.region_node_list)
         return np.vstack(tuple(global_node_list))
 
 
@@ -156,28 +156,27 @@ class RegionMesh(object):
         else:
             self.nuFission = np.zeros(self.nG)
             self.chiNuFission = None
-            #source = kwargs.pop("source", None)
         # Build elements in the region mesh
         self.buildElements(gmshRegion, fluxStor, source, **kwargs)
-        self._gen_node_list(gmshRegion, **kwargs)
         self.linkBoundaryElements(gmshRegion)
 
-    def _gen_node_list(self, gmshRegion, **kwargs):
+    @property
+    def region_node_list(self):
         """!
         @brief Helper function to generate node and element info
         """
-        self.node_list = []
-        for element in gmshRegion['elements']:
+        node_list = []
+        for element in self.gmshRegion['elements']:
             nodeIDs = element[1:]
-            gmsh_dg_element = gmshRegion['dg_elements'][int(element[0])]
+            gmsh_dg_element = self.gmshRegion['dg_elements'][int(element[0])]
             global_nodeIDs = gmsh_dg_element['global_nodeIDs']
             global_nodePos = gmsh_dg_element['vertex_pos']
             element_centroid = gmsh_dg_element['centroid']
             for glb_id, glb_pos in zip(global_nodeIDs, global_nodePos):
-                self.node_list.append(
+                node_list.append(
                         [glb_id] + list(element_centroid) + list(glb_pos)
                         )
-        self.node_list = np.array(self.node_list)
+        return np.array(node_list)
 
     def buildElements(self, gmshRegion, fluxStor, source, **kwargs):
         """!

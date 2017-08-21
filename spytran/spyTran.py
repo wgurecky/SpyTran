@@ -77,7 +77,7 @@ class D1solver(object):
     def writeData(self, outFile, fmt=True):
         if self.space is not "dg":
             fmt=False
-        self.solver.writeData(outFile, new_fmt=fmt)
+        self.solver.writeData(outFile, h5_fmt=fmt)
 
 
 if __name__ == "__main__":
