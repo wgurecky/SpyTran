@@ -51,7 +51,7 @@ srcDict = {'mat_1': 'fission',
            'mat_3': None}
 
 # Init solver
-slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict,
+slv = spytran.SnSolver(geoFile, materialDict, bcDict, srcDict,
                        nG=nG, sN=sN, dim=2)
 
 # Solve

@@ -6,7 +6,7 @@ import numpy as np
 np.set_printoptions(linewidth=200)  # set print to screen opts
 
 
-class D1solver(object):
+class SnSolver(object):
     def __init__(self, geoFile, materialDict, bcDict, srcDict, **kwargs):
         nG = kwargs.pop('nG', 10)
         lOrder = kwargs.pop('lOrder', 8)

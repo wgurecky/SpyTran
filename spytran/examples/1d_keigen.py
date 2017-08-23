@@ -32,7 +32,7 @@ srcDict = {'mat_1': 'fission',
            'mat_2': 'fission'}
 
 # Init solver
-slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN, space='dg')
+slv = spytran.SnSolver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN, space='dg')
 
 # Solve
 slv.kSolve(residTol=1e-6, kTol=1e-5)

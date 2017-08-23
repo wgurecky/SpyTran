@@ -38,7 +38,7 @@ srcDict = {'mat_1': None,
            'mat_2': src}
 
 # Init solver
-slv = spytran.D1solver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN, dim=2)
+slv = spytran.SnSolver(geoFile, materialDict, bcDict, srcDict, nG=nG, sN=sN, dim=2)
 
 # Solve
 slv.trSolve(residTol=1e-5)
